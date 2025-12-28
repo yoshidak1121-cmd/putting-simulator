@@ -31,7 +31,6 @@ body{
   font-size: 16px;
 }
 
-/* buttons */
 .actions button{
   padding: 8px 12px;
   font-size: 14px;
@@ -72,6 +71,34 @@ body{
   color: var(--text);
 }
 
+.pmRow{
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.pmItem{
+  margin: 0;
+  font-size: 14px;
+}
+
+.sweepRow{
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 6px;
+}
+
+.sweepRow button{
+  padding: 10px 10px;
+  font-size: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--input-bd);
+  background: #0f1116;
+  color: var(--text);
+}
+
 #result{
   margin-top: 10px;
   padding: 10px;
@@ -86,14 +113,14 @@ body{
 /* canvas area */
 .view{
   padding: 12px;
-  min-height: 0; /* grid内で縮みすぎるのを抑制 */
+  min-height: 0;
 }
 
 canvas{
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 65vh;        /* iPhoneで“細い縦線”になるのを防ぐ */
+  min-height: 65vh;
   background: #1e1e1e;
   border-radius: 12px;
 }
