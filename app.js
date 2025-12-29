@@ -8,6 +8,9 @@ const deg2rad = d => d * Math.PI / 180;
 // v0 を外から渡すバージョン（純粋な物理シミュレーション）
 function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
 
+  // v0 が小さすぎたり NaN の場合は補正
+  if (!isFinite(v0) || v0 < 0.01) v0 = 0.01;
+
   const dt = 0.01;
   const g = 9.80665;
   const cupR = CUP / 2;
@@ -48,6 +51,8 @@ function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
     x += vx * dt;
     y += vy * dt;
 
+    if (!isFinite(x) || !isFinite(y)) break;
+
     path.push({ x, y });
 
     if (Math.hypot(x, y) <= cupR) {
@@ -55,6 +60,9 @@ function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
       break;
     }
   }
+
+  // 最低2点は描画できるように保証
+  if (path.length < 2) path.push({ x, y });
 
   return { path, stop: { x, y }, holed };
 }
@@ -78,7 +86,7 @@ function findV0ForDover(D, theta, S, alpha, Dover) {
     v0 = v0 - error * 0.2;
 
     // v0 が負やゼロにならないようにする
-    if (v0 < 0.01) v0 = 0.01;
+    if (!isFinite(v0) || v0 < 0.01) v0 = 0.01;
   }
 
   return v0;
@@ -88,10 +96,8 @@ function findV0ForDover(D, theta, S, alpha, Dover) {
 // Dover（合成距離）対応版 simulate()
 function simulate(D, theta, S, alpha, Dover) {
 
-  // Dover に一致する v0 を求める
   const v0 = findV0ForDover(D, theta, S, alpha, Dover);
 
-  // その v0 で本番シミュレーション
   return simulateWithV0(D, theta, S, alpha, v0);
 }
 
@@ -119,6 +125,11 @@ function drawAxes(sims, D, Dover) {
       yMax = Math.max(yMax, p.y / CUP);
     })
   );
+
+  if (!isFinite(yMin) || !isFinite(yMax)) {
+    yMin = -1;
+    yMax = 1;
+  }
 
   let yLo = Math.floor(yMin) - 1;
   let yHi = Math.ceil(yMax) + 1;
@@ -172,11 +183,14 @@ function drawMany(sims, D, Dover, title) {
 
   // ---- Paths ----
   sims.forEach((sim, i) => {
+    if (!sim.path || sim.path.length < 2) return;
+
     ctx.strokeStyle = sim.holed ? "#00ff66" : "#ffffff";
     ctx.globalAlpha = (i === Math.floor(sims.length / 2)) ? 1 : 0.55;
     ctx.lineWidth = 3;
     ctx.beginPath();
     sim.path.forEach((p, k) => {
+      if (!isFinite(p.x) || !isFinite(p.y)) return;
       const px = tx(p.x);
       const py = ty(p.y / CUP);
       if (k === 0) ctx.moveTo(px, py);
