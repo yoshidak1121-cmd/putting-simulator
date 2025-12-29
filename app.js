@@ -4,7 +4,9 @@ const CUP = 0.108; // 1 cup = 10.8cm
 const deg2rad = d => d * Math.PI / 180;
 
 // ================= Physics =================
-function simulate(D, thetaDeg, stimpFt, alphaDeg, Dover) {
+
+// v0 を外から渡すバージョン（純粋な物理シミュレーション）
+function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
 
   const dt = 0.01;
   const g = 9.80665;
@@ -19,10 +21,6 @@ function simulate(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   let x = -D;
   let y = 0;
 
-  // initial speed
-  const travel = Math.max(0.05, D + Dover);
-  const v0 = Math.sqrt(2 * aRoll * travel);
-
   // direction (+X rotated by alpha)
   const a = deg2rad(alphaDeg);
   let vx = v0 * Math.cos(a);
@@ -33,7 +31,7 @@ function simulate(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   const aSlopeY = -g * Math.tan(theta);
 
   // ---- 速度依存摩擦係数 ----
-  const k = aRoll / v0;  // 初速での摩擦が同じになるよう調整
+  const k = aRoll / v0;
 
   const path = [{ x, y }];
   let holed = false;
@@ -42,7 +40,6 @@ function simulate(D, thetaDeg, stimpFt, alphaDeg, Dover) {
     const v = Math.hypot(vx, vy);
     if (v < 0.03) break;
 
-    // ---- 速度依存摩擦 ----
     const ax = -k * vx;
     const ay = -k * vy + aSlopeY;
 
@@ -59,11 +56,45 @@ function simulate(D, thetaDeg, stimpFt, alphaDeg, Dover) {
     }
   }
 
-  // 最低2点は描画できるように保証
-  if (path.length < 2) path.push({ x, y });
-
   return { path, stop: { x, y }, holed };
 }
+
+
+// Dover（合成距離）に一致する v0 を反復計算で求める
+function findV0ForDover(D, theta, S, alpha, Dover) {
+
+  let v0 = 1.0; // 初期推定（適当でOK）
+
+  for (let iter = 0; iter < 12; iter++) {
+
+    const sim = simulateWithV0(D, theta, S, alpha, v0);
+
+    // 合成距離（カップから停止点までの直線距離）
+    const actual = Math.hypot(sim.stop.x, sim.stop.y);
+
+    const error = actual - Dover;
+
+    if (Math.abs(error) < 0.01) break;
+
+    // 誤差に応じて v0 を調整
+    v0 *= (1 - error * 0.4);
+  }
+
+  return v0;
+}
+
+
+// Dover（合成距離）対応版 simulate()
+function simulate(D, theta, S, alpha, Dover) {
+
+  // Dover に一致する v0 を求める
+  const v0 = findV0ForDover(D, theta, S, alpha, Dover);
+
+  // その v0 で本番シミュレーション
+  return simulateWithV0(D, theta, S, alpha, v0);
+}
+
+
 
 // ================= Drawing =================
 const cv = document.getElementById("cv");
@@ -174,6 +205,8 @@ function drawMany(sims, D, Dover, title) {
     ctx.fillText(title, 10, 14);
   }
 }
+
+
 
 // ================= UI =================
 function getI() {
