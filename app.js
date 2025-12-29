@@ -247,16 +247,29 @@ function runSingle() {
   const sim = simulate(i.D, i.theta, i.S, i.alpha, i.Dover);
   drawMany([sim], i.D, i.Dover, "単発");
 
-// ---- 停止位置（打ち出し基準）の表示 ----
-const stopX = sim.stop.x;      // m
-const stopY = sim.stop.y;      // m
-const stopDist = Math.hypot(stopX + i.D, stopY);  // 打ち出し位置(-D,0)からの距離
+  // ---- 停止位置（打ち出し基準）の表示 ----
+  const stopX = sim.stop.x;
+  const stopY = sim.stop.y;
+  const stopDist = Math.hypot(stopX + i.D, stopY);
 
-result.textContent =
-  `停止位置 X: ${stopX.toFixed(3)} m\n` +
-  `停止位置 Y: ${stopY.toFixed(3)} m\n` +
-  `停止距離（打ち出し基準）: ${stopDist.toFixed(3)} m\n`;
+  // ---- 最大幅（左右） ----
+  const maxY = Math.max(...sim.path.map(p => Math.abs(p.y)));
+  const maxWidth = maxY / CUP;
 
+  // ---- 基本情報 ----
+  let text =
+    `停止位置 X: ${stopX.toFixed(3)} m\n` +
+    `停止位置 Y: ${stopY.toFixed(3)} m\n` +
+    `停止距離（打ち出し基準）: ${stopDist.toFixed(3)} m\n` +
+    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP\n`;
+
+  // ---- 軌跡データ ----
+  text += "\n--- 軌跡データ ---\n";
+  sim.path.forEach((p, idx) => {
+    text += `#${idx}: x=${p.x.toFixed(3)} m, y=${p.y.toFixed(3)} m\n`;
+  });
+
+  result.textContent = text;
 }
 
 function runSweep(type) {
