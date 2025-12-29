@@ -1,40 +1,76 @@
 * { box-sizing: border-box; }
 
+:root{
+  --bg: #0b0c10;
+  --panel: #161616;
+  --bar: #111;
+  --text: #ffffff;
+  --muted: rgba(255,255,255,0.75);
+  --border: rgba(255,255,255,0.18);
+  --btn: #e9eefc;
+  --btnText: #0b0c10;
+}
+
 body {
   margin: 0;
-  background: #0b0c10;
-  color: #ffffff;
+  background: var(--bg);
+  color: var(--text);
   font-family: system-ui, -apple-system, "Yu Gothic", "Meiryo", sans-serif;
 }
 
-/* ===== Top ===== */
+/* ===== Header ===== */
 .topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: #111;
+  background: var(--bar);
+  gap: 10px;
 }
 
 .title { font-weight: 700; }
 
+.actions{
+  display: flex;
+  gap: 8px;
+}
+
+.actions button{
+  padding: 10px 12px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--btnText);
+}
+
 /* ===== Layout ===== */
 .main {
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  height: calc(100vh - 48px);
+  grid-template-columns: 360px 1fr;
+  height: calc(100vh - 52px);
 }
 
 .panel {
+  background: var(--panel);
+  overflow: auto;
   padding: 12px;
-  background: #161616;
-  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.10);
 }
 
-.view {
-  padding: 8px;
-  background: #000;
+/* ===== Details ===== */
+.summary{
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 10px 0 12px;
 }
+
+details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+details > summary::-webkit-details-marker { display: none; }
 
 /* ===== Inputs ===== */
 .panel label {
@@ -45,70 +81,107 @@ body {
 
 .panel input {
   width: 100%;
-  padding: 12px;
-  margin-top: 6px;
-  font-size: 18px;
-  border-radius: 8px;
+  padding: 12px 12px;
+  margin-top: 8px;
+  font-size: 18px; /* iOSで小さすぎると拡大されるため */
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #0f0f0f;
+  color: var(--text);
 }
 
-button {
-  padding: 12px;
-  font-size: 16px;
-  border-radius: 10px;
-}
-
-.pmRow {
+.pmRow{
   display: flex;
-  gap: 12px;
-  margin-top: 6px;
+  gap: 14px;
+  margin-top: 8px;
+  flex-wrap: wrap;
 }
 
-.sweepRow {
+.pmItem{
+  margin: 0;
+  font-size: 15px;
+}
+
+.sweepRow{
   display: flex;
   gap: 8px;
-  margin: 10px 0;
+  flex-wrap: wrap;
+  margin: 10px 0 8px;
+}
+
+.sweepRow button{
+  padding: 12px 12px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #0f1116;
+  color: var(--text);
+}
+
+#result{
+  margin-top: 10px;
+  padding: 10px;
+  background: #0f1116;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.85);
 }
 
 /* ===== Canvas ===== */
-canvas {
+.view{
+  padding: 10px;
+  min-height: 0;
+}
+
+canvas{
   width: 100%;
   height: 100%;
-  min-height: 400px;
   background: #1e1e1e;
-  border-radius: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
 }
 
 /* ===== iPhone / Mobile ===== */
-@media (max-width: 900px) {
+@media (max-width: 900px){
 
-  .main {
+  .main{
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
+    height: calc(100vh - 52px);
   }
 
-  .panel {
+  .panel{
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    padding: 10px 12px;
+  }
+
+  /* 設定を開いたままだとキャンバスが小さくなるため、見やすさ優先で最大高を制限 */
+  .panel details[open]{
     max-height: 42vh;
-    overflow-y: auto;
-    border-bottom: 1px solid #333;
+    overflow: auto;
   }
 
-  .view {
+  .view{
+    padding: 8px;
     height: 58vh;
-    padding: 6px;
   }
 
-  canvas {
+  canvas{
     width: 100%;
     height: 100%;
-    min-height: unset;
   }
 
-  button {
-    font-size: 18px;
-    padding: 14px;
+  .actions button{
+    font-size: 16px;
+    padding: 10px 12px;
   }
 
-  .panel input {
-    font-size: 18px;
+  .sweepRow button{
+    font-size: 16px;
+    padding: 12px 12px;
   }
 }
