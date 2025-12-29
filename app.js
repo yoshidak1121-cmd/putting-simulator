@@ -81,6 +81,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   const aSlopeY = -g * Math.sin(theta);
 
   const path = [{ x, y }];
+  let holed = false;
   let vCup = null;
   let cupIndex = null;
   let tStop = 0;
@@ -115,6 +116,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
         path.push({ x: hit.x, y: hit.y });
         cupIndex = path.length - 1;
         vCup = v;
+        holed = true;
       }
     }
 
@@ -122,7 +124,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
     tStop = t;
   }
 
-  return { path, stop: { x, y }, v0, aRoll, tStop, vCup, cupIndex };
+  return { path, stop: { x, y }, holed, v0, aRoll, tStop, vCup, cupIndex };
 }
 
 // ================= Drawing =================
