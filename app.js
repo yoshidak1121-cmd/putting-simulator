@@ -247,14 +247,16 @@ function runSingle() {
   const sim = simulate(i.D, i.theta, i.S, i.alpha, i.Dover);
   drawMany([sim], i.D, i.Dover, "単発");
 
-  // ---- 計算結果の表示 ----
-  const dist = Math.hypot(sim.stop.x, sim.stop.y);
-  const maxY = Math.max(...sim.path.map(p => Math.abs(p.y)));
-  const maxWidth = maxY / CUP;
+// ---- 停止位置（打ち出し基準）の表示 ----
+const stopX = sim.stop.x;      // m
+const stopY = sim.stop.y;      // m
+const stopDist = Math.hypot(stopX + i.D, stopY);  // 打ち出し位置(-D,0)からの距離
 
-  result.textContent =
-    `停止距離（合成）: ${dist.toFixed(3)} m\n` +
-    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP`;
+result.textContent =
+  `停止位置 X: ${stopX.toFixed(3)} m\n` +
+  `停止位置 Y: ${stopY.toFixed(3)} m\n` +
+  `停止距離（打ち出し基準）: ${stopDist.toFixed(3)} m\n`;
+
 }
 
 function runSweep(type) {
