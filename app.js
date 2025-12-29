@@ -18,7 +18,7 @@ function computeInitialV0(D, Dover, aRoll, thetaDeg) {
   const g = 9.80665;
   const theta = deg2rad(thetaDeg);
 
-  // 傾斜方向の重力成分（上りを正とする）
+  // 傾斜角 θ > 0 は -Y方向の下り坂 → a_g < 0
   const a_g = -g * Math.sin(theta);
 
   // 有効減速度（上り：強く、下り：弱く）
