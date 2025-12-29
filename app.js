@@ -19,7 +19,7 @@ function computeInitialV0(D, Dover, aRoll, thetaDeg) {
   const theta = deg2rad(thetaDeg);
 
   // 傾斜方向の重力成分（上りを正とする）
-  const a_g = g * Math.sin(theta);
+  const a_g = -g * Math.sin(theta);
 
   // 有効減速度（上り：強く、下り：弱く）
   const aEff = aRoll + a_g;
