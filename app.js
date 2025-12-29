@@ -3,6 +3,13 @@
 const CUP = 0.108;
 const deg2rad = d => d * Math.PI / 180;
 
+// Helper function to escape HTML to prevent XSS
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 // ================= DOM references =================
 const D        = document.getElementById("D");
 const theta    = document.getElementById("theta");
@@ -468,7 +475,7 @@ function runSingle() {
   // ボール原点座標系に変換して表示
   const stopX_display = sim.stop.x + i.D;
   const stopY_display = sim.stop.y;
-  const stopDist = Math.hypot(stopX_display - i.D, stopY_display);
+  const stopDist = Math.hypot(sim.stop.x, sim.stop.y);
 
   const maxY = Math.max(...sim.path.map(p => Math.abs(p.y)));
   const maxWidth = maxY / CUP;
@@ -510,7 +517,7 @@ function runAlpha5() {
   drawMany(sims, i.D, i.Dover, `α 5本 (中心 ${baseAlpha}°)`, true);
 
   // テーブル形式で結果を表示
-  let html = `<strong>α 5本比較（中心 ${baseAlpha}°）</strong>\n\n`;
+  let html = `<strong>α 5本比較（中心 ${escapeHtml(String(baseAlpha))}°）</strong>\n\n`;
   html += `<table>`;
   html += `<tr><th>α [°]</th><th>Δα</th><th>入った</th><th>vCup [m/s]</th><th>停止X [m]</th><th>停止Y [m]</th><th>カップ中心距離 [m]</th></tr>`;
   
@@ -555,7 +562,7 @@ function runTheta5() {
   drawMany(sims, i.D, i.Dover, `θ 5本 (中心 ${baseTheta}°)`, true);
 
   // テーブル形式で結果を表示
-  let html = `<strong>θ 5本比較（中心 ${baseTheta}°）</strong>\n\n`;
+  let html = `<strong>θ 5本比較（中心 ${escapeHtml(String(baseTheta))}°）</strong>\n\n`;
   html += `<table>`;
   html += `<tr><th>θ [°]</th><th>Δθ</th><th>入った</th><th>vCup [m/s]</th><th>停止X [m]</th><th>停止Y [m]</th><th>カップ中心距離 [m]</th></tr>`;
   
@@ -600,7 +607,7 @@ function runDover5() {
   drawMany(sims, i.D, baseDover + 0.5, `Dover 5本 (中心 ${baseDover} m)`, true);
 
   // テーブル形式で結果を表示
-  let html = `<strong>Dover 5本比較（中心 ${baseDover} m）</strong>\n\n`;
+  let html = `<strong>Dover 5本比較（中心 ${escapeHtml(String(baseDover))} m）</strong>\n\n`;
   html += `<table>`;
   html += `<tr><th>Dover [m]</th><th>ΔDover</th><th>入った</th><th>vCup [m/s]</th><th>停止X [m]</th><th>停止Y [m]</th><th>カップ中心距離 [m]</th></tr>`;
   
