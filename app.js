@@ -3,6 +3,21 @@
 const CUP = 0.108;
 const deg2rad = d => d * Math.PI / 180;
 
+// ================= DOM references =================
+const D        = document.getElementById("D");
+const theta    = document.getElementById("theta");
+const S        = document.getElementById("S");
+const alpha    = document.getElementById("alpha");
+const Dover    = document.getElementById("Dover");
+
+const run       = document.getElementById("run");
+const reset     = document.getElementById("reset");
+const runAlpha5 = document.getElementById("runAlpha5");
+const runTheta5 = document.getElementById("runTheta5");
+const runDover5 = document.getElementById("runDover5");
+
+const result    = document.getElementById("result");
+
 // ================= Physics =================
 
 // スティンプから一定減速度 aRoll を計算
@@ -18,12 +33,10 @@ function computeInitialV0(D, Dover, aRoll, thetaDeg) {
   const g = 9.80665;
   const theta = deg2rad(thetaDeg);
 
-  // -Y が下り → θ>0 で加速 → a_g < 0
   const a_g = -g * Math.sin(theta);
-
   const aEff = aRoll + a_g;
-  if (aEff <= 0) return 0.1;
 
+  if (aEff <= 0) return 0.1;
   return Math.sqrt(2 * aEff * L);
 }
 
@@ -68,7 +81,6 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   const aSlopeY = -g * Math.sin(theta);
 
   const path = [{ x, y }];
-  let holed = false;
   let vCup = null;
   let cupIndex = null;
   let tStop = 0;
@@ -96,7 +108,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
     x += vx * dt;
     y += vy * dt;
 
-    // ★ 線分と円の交差判定（カップ通過）
+    // ★ 線分と円の交差判定
     if (cupIndex === null) {
       const hit = segmentHitsCircle(xPrev, yPrev, x, y, CUP / 2);
       if (hit) {
@@ -110,7 +122,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
     tStop = t;
   }
 
-  return { path, stop: { x, y }, holed, v0, aRoll, tStop, vCup, cupIndex };
+  return { path, stop: { x, y }, v0, aRoll, tStop, vCup, cupIndex };
 }
 
 // ================= Drawing =================
