@@ -49,7 +49,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
 
   // 傾斜の重力成分（Y方向）
   const theta = deg2rad(thetaDeg);
-  const aSlopeY = g * Math.sin(theta);
+  const aSlopeY = -g * Math.sin(theta);
 
   const path = [{ x, y }];
   let holed = false;
