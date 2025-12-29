@@ -16,12 +16,12 @@
 
     <div class="row">
       <label for="D">距離 D [m]</label>
-      <input id="D" type="number" step="0.1" value="3.0">
+      <input id="D" type="number" step="0.5" value="3.0">
     </div>
 
     <div class="row">
-      <label for="theta">傾斜角 θ [deg]</label>
-      <input id="theta" type="number" step="0.1" value="0.0">
+      <label for="theta">傾斜角 θ [deg]<br><span class="note">(右＋／左−)</span></label>
+      <input id="theta" type="number" step="0.5" value="0.0">
     </div>
 
     <div class="row">
@@ -30,25 +30,32 @@
     </div>
 
     <div class="row">
-      <label for="alpha">打ち出し角 α [deg]</label>
+      <label for="alpha">打ち出し角 α [deg]<br><span class="note">(反時計＋／時計−)</span></label>
       <input id="alpha" type="number" step="0.1" value="0.0">
     </div>
 
     <div class="row">
-      <label for="Dover">オーバー距離 Dover [m]</label>
+      <label for="Dover">オーバー距離 Dover [m]<br><span class="note">(カップ縁基準)</span></label>
       <input id="Dover" type="number" step="0.1" value="0.5">
     </div>
 
     <div class="btnRow">
-      <button id="run">単発</button>
+      <button id="run">計算して表示</button>
       <button id="reset">リセット</button>
     </div>
 
-    <div class="btnRow">
-      <button id="runAlpha5">α 5本</button>
-      <button id="runTheta5">θ 5本</button>
-      <button id="runDover5">Dover 5本</button>
-    </div>
+    <details>
+      <summary>比較して確認（5条件）</summary>
+      <div class="btnRow">
+        <button id="runAlpha5">打ち出し角を5条件比較</button>
+      </div>
+      <div class="btnRow">
+        <button id="runTheta5">傾斜角を5条件比較</button>
+      </div>
+      <div class="btnRow">
+        <button id="runDover5">タッチを5条件比較</button>
+      </div>
+    </details>
 
   </div>
 

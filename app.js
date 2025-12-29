@@ -40,9 +40,10 @@ function computeARoll(stimpFt) {
   return (v_stimp ** 2) / (2 * s);
 }
 
-// 初速 v0 を「D + Dover」から直接計算
+// 初速 v0 を「D + CUP/2 + Dover」から直接計算
+// Dover はカップ縁（バックエッジ）からのオーバー距離
 function computeInitialV0(D, Dover, aRoll, thetaDeg) {
-  const L = D + Dover;
+  const L = D + CUP / 2 + Dover;
   const g = 9.80665;
   const theta = deg2rad(thetaDeg);
 
@@ -54,18 +55,21 @@ function computeInitialV0(D, Dover, aRoll, thetaDeg) {
 }
 
 // ================= Cup crossing (線分と円の交差判定) =================
+// カップ中心が (cupX, cupY) にある円との交差判定
 
-function segmentHitsCircle(x0, y0, x1, y1, r) {
+function segmentHitsCircle(x0, y0, x1, y1, cupX, cupY, r) {
   const dx = x1 - x0, dy = y1 - y0;
   const a = dx*dx + dy*dy;
   if (a === 0) return null;
 
-  let t = -(x0*dx + y0*dy) / a;
+  const fx = x0 - cupX;
+  const fy = y0 - cupY;
+  let t = -(fx*dx + fy*dy) / a;
   t = Math.max(0, Math.min(1, t));
 
   const cx = x0 + t*dx;
   const cy = y0 + t*dy;
-  const d2 = cx*cx + cy*cy;
+  const d2 = (cx - cupX)*(cx - cupX) + (cy - cupY)*(cy - cupY);
 
   if (d2 <= r*r) {
     return { t, x: cx, y: cy };
@@ -74,6 +78,8 @@ function segmentHitsCircle(x0, y0, x1, y1, r) {
 }
 
 // ================= Simulation =================
+// 座標系: 原点 (0,0) はボール位置、+Y方向がカップ方向
+// カップ中心は (0, D)
 
 function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
 
@@ -83,15 +89,15 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   const dt = 0.01;
   const g = 9.80665;
 
-  let x = -D;
+  let x = 0;  // ボール原点
   let y = 0;
 
   const a = deg2rad(alphaDeg);
-  let vx = v0 * Math.cos(a);
-  let vy = v0 * Math.sin(a);
+  let vx = v0 * Math.sin(a);  // X方向: 右が正（反時計回りで右に振れる）
+  let vy = v0 * Math.cos(a);  // Y方向: カップ方向が正
 
   const theta = deg2rad(thetaDeg);
-  const aSlopeY = -g * Math.sin(theta);
+  const aSlopeX = g * Math.sin(theta);  // 傾斜による横方向加速度（右傾斜でプラス）
 
   const path = [{ x, y }];
   let holed = false;
@@ -105,8 +111,8 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   for (let t = 0; t < maxTime; t += dt) {
 
     const v = Math.hypot(vx, vy);
-    const ax = -aRoll * (vx / v);
-    const ay = -aRoll * (vy / v) + aSlopeY;
+    const ax = -aRoll * (vx / v) + aSlopeX;
+    const ay = -aRoll * (vy / v);
 
     const aMag = Math.hypot(ax, ay);
     if (v < 0.01 || aMag < 0.01) {
@@ -122,9 +128,9 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
     x += vx * dt;
     y += vy * dt;
 
-    // ★ 線分と円の交差判定
+    // ★ 線分と円の交差判定（カップ中心: 0, D）
     if (cupIndex === null) {
-      const hit = segmentHitsCircle(xPrev, yPrev, x, y, CUP / 2);
+      const hit = segmentHitsCircle(xPrev, yPrev, x, y, 0, D, CUP / 2);
       if (hit) {
         path.push({ x: hit.x, y: hit.y });
         cupIndex = path.length - 1;
@@ -181,16 +187,16 @@ function hitTestAxis(px, py, w, h) {
 }
 
 // 自動初期ビュー（最初の一回だけ）
+// ボール原点 (0,0)、カップ (0,D)
 function autoInitViewFromInputs() {
   const i = getI();
   const A = CUP / 2;
 
-  const xMin = -1;
-  const xMaxCandidate = Math.max(1, i.Dover + 1, i.D + i.Dover + 1);
-  const xMax = Math.ceil(xMaxCandidate);
+  const xMin = Math.min(-1, -5 * A);
+  const xMax = Math.max(1, 5 * A);
 
-  const yMax = Math.max(5 * A, 0 + A);
-  const yMin = Math.min(-5 * A, 0 - A);
+  const yMin = -0.5;
+  const yMax = Math.max(i.D + 1, i.D + i.Dover + 1);
 
   view.xMin = xMin;
   view.xMax = xMax;
@@ -200,7 +206,8 @@ function autoInitViewFromInputs() {
 }
 
 // drawMany: view 対応版
-function drawMany(sims, D, Dover, title) {
+// 座標系: ボール原点 (0,0)、カップ (0,D)
+function drawMany(sims, D, Dover, title, alphaCenter35 = null) {
 
   setupCanvas();
   const w = cv.width, h = cv.height;
@@ -208,16 +215,10 @@ function drawMany(sims, D, Dover, title) {
 
   const A = CUP / 2;
 
-  // --- 座標変換（ボールを原点に） ---
+  // --- 座標変換不要（既にボール原点） ---
   sims.forEach(sim => {
-    sim.path2 = sim.path.map(p => ({
-      x: p.x + D,
-      y: p.y
-    }));
-    sim.stop2 = {
-      x: sim.stop.x + D,
-      y: sim.stop.y
-    };
+    sim.path2 = sim.path;
+    sim.stop2 = sim.stop;
   });
 
   // --- view をそのまま使用 ---
@@ -240,11 +241,12 @@ function drawMany(sims, D, Dover, title) {
   const tx = x => (x - view.xMin) * sx;
   const ty = y => h - (y - view.yMin) * sy;
 
-  // 背景クリア（必要なら色を変える）
-  ctx.clearRect(0, 0, w, h);
+  // 背景（薄緑色）
+  ctx.fillStyle = "#d4f1d4";
+  ctx.fillRect(0, 0, w, h);
 
   // --- グリッド（X：1m刻み） ---
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.strokeStyle = "rgba(100,140,100,0.3)";
   ctx.lineWidth = 1;
   const xmStart = Math.ceil(view.xMin);
   const xmEnd = Math.floor(view.xMax);
@@ -255,58 +257,71 @@ function drawMany(sims, D, Dover, title) {
     ctx.stroke();
   }
 
-  // --- グリッド（Y：Aずらしの2A刻み） ---
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  for (let y = A; y <= view.yMax; y += 2 * A) {
+  // --- グリッド（Y：1m刻み） ---
+  ctx.strokeStyle = "rgba(100,140,100,0.3)";
+  const ymStart = Math.ceil(view.yMin);
+  const ymEnd = Math.floor(view.yMax);
+  for (let ym = ymStart; ym <= ymEnd; ym++) {
     ctx.beginPath();
-    ctx.moveTo(0, ty(y));
-    ctx.lineTo(w, ty(y));
-    ctx.stroke();
-  }
-  for (let y = -A; y >= view.yMin; y -= 2 * A) {
-    ctx.beginPath();
-    ctx.moveTo(0, ty(y));
-    ctx.lineTo(w, ty(y));
+    ctx.moveTo(0, ty(ym));
+    ctx.lineTo(w, ty(ym));
     ctx.stroke();
   }
 
   // --- 基準線（X/Y軸） ---
-  ctx.strokeStyle = "rgba(255,255,255,0.4)";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(80,120,80,0.6)";
+  ctx.lineWidth = 2;
 
   // X軸 (y=0)
-  ctx.beginPath();
-  ctx.moveTo(0, ty(0));
-  ctx.lineTo(w, ty(0));
-  ctx.stroke();
+  if (view.yMin <= 0 && view.yMax >= 0) {
+    ctx.beginPath();
+    ctx.moveTo(0, ty(0));
+    ctx.lineTo(w, ty(0));
+    ctx.stroke();
+  }
 
   // Y軸 (x=0)
-  ctx.beginPath();
-  ctx.moveTo(tx(0), 0);
-  ctx.lineTo(tx(0), h);
-  ctx.stroke();
+  if (view.xMin <= 0 && view.xMax >= 0) {
+    ctx.beginPath();
+    ctx.moveTo(tx(0), 0);
+    ctx.lineTo(tx(0), h);
+    ctx.stroke();
+  }
 
-  // --- ボール（白丸・実寸） ---
+  // --- ボール（グレー・実寸） ---
   const BALL_DIAM = 0.04267;
   const BALL_R = BALL_DIAM / 2;
-  const rBall = BALL_R * sy;
+  const rBall = BALL_R * Math.max(sx, sy);
 
+  ctx.fillStyle = "#888888";
+  ctx.beginPath();
+  ctx.arc(tx(0), ty(0), Math.max(2, rBall), 0, Math.PI * 2);
+  ctx.fill();
+
+  // --- カップ（内側白、外周黒） ---
+  const rCup = A * Math.max(sx, sy);
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(tx(0), ty(0), Math.max(1, rBall), 0, Math.PI * 2);
+  ctx.arc(tx(0), ty(D), Math.max(2, rCup), 0, Math.PI * 2);
   ctx.fill();
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
-  // --- カップ（実寸） ---
-  const rCup = A * sy;
-  ctx.fillStyle = "#e60000";
-  ctx.beginPath();
-  ctx.arc(tx(D), ty(0), Math.max(1, rCup), 0, Math.PI * 2);
-  ctx.fill();
+  // --- カップ補助円（1カップ半径ごと） ---
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 5; i++) {
+    const rHelper = (A * i) * Math.max(sx, sy);
+    ctx.beginPath();
+    ctx.arc(tx(0), ty(D), rHelper, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   // --- 軌跡 ---
   sims.forEach((sim, idx) => {
-    const colorBefore = sim.color || "#ffffff";
-    const colorAfter = "#00ff66";
+    const colorBefore = sim.color || "#0066cc";
+    const colorAfter = "#cc0000";
 
     ctx.lineWidth = idx === 0 ? 3 : 2;
 
@@ -343,13 +358,36 @@ function drawMany(sims, D, Dover, title) {
     ctx.fill();
   });
 
+  // --- α_center35 ガイド線 ---
+  if (alphaCenter35 !== null) {
+    const alphaRad = deg2rad(alphaCenter35);
+    const dirX = Math.sin(alphaRad);
+    const dirY = Math.cos(alphaRad);
+
+    // y = D との交点を求める
+    if (Math.abs(dirY) > 0.001) {
+      const t = D / dirY;
+      const endX = t * dirX;
+      const endY = D;
+
+      ctx.strokeStyle = "rgba(255, 0, 0, 0.7)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(tx(0), ty(0));
+      ctx.lineTo(tx(endX), ty(endY));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
   // --- タイトル ---
-  ctx.fillStyle = "#fff";
-  ctx.font = "12px sans-serif";
-  ctx.fillText(title, 10, 14);
+  ctx.fillStyle = "#333";
+  ctx.font = "14px sans-serif";
+  ctx.fillText(title, 10, 20);
 
   // --- 軸端ハンドル表示（視覚的に掴めるように） ---
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillStyle = "rgba(80,120,80,0.6)";
   const handleSize = 6;
   // xMin handle
   ctx.fillRect(tx(view.xMin) - handleSize/2, h - 18, handleSize, 12);
@@ -373,8 +411,75 @@ function getI() {
   };
 }
 
+// 入力値検証
+function validateInputs(i) {
+  if (isNaN(i.D) || isNaN(i.theta) || isNaN(i.S) || isNaN(i.alpha) || isNaN(i.Dover)) {
+    return false;
+  }
+  if (i.D <= 0 || i.S <= 0) {
+    return false;
+  }
+  return true;
+}
+
+// α_center35 を計算（Dover=0.35mでカップ中心を通る打ち出し角）
+function computeAlphaCenter35(D, thetaDeg, stimpFt) {
+  const Dover35 = 0.35;
+  const targetY = D;
+  const tolerance = 0.001;  // 1mm
+  const maxIter = 50;
+
+  // 二分法で解く
+  let alphaLow = -45;
+  let alphaHigh = 45;
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const alphaMid = (alphaLow + alphaHigh) / 2;
+    const sim = simulate2D(D, thetaDeg, stimpFt, alphaMid, Dover35);
+
+    // y=D を跨ぐ点を見つけて線形補間
+    let xAtD = null;
+    for (let i = 1; i < sim.path.length; i++) {
+      const p0 = sim.path[i - 1];
+      const p1 = sim.path[i];
+      if ((p0.y <= targetY && p1.y >= targetY) || (p0.y >= targetY && p1.y <= targetY)) {
+        const t = (targetY - p0.y) / (p1.y - p0.y);
+        xAtD = p0.x + t * (p1.x - p0.x);
+        break;
+      }
+    }
+
+    if (xAtD === null) {
+      // 到達しない場合
+      return null;
+    }
+
+    if (Math.abs(xAtD) < tolerance) {
+      return alphaMid;
+    }
+
+    if (xAtD < 0) {
+      alphaLow = alphaMid;
+    } else {
+      alphaHigh = alphaMid;
+    }
+  }
+
+  return null;
+}
+
 function runSingle() {
   const i = getI();
+
+  // 入力値検証
+  if (!validateInputs(i)) {
+    result.textContent = "エラー\n入力値を確認してください";
+    setupCanvas();
+    const w = cv.width, h = cv.height;
+    ctx.fillStyle = "#d4f1d4";
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
 
   // 初回は自動で view を初期化
   if (!view.initialized) {
@@ -383,106 +488,158 @@ function runSingle() {
 
   const sim = simulate2D(i.D, i.theta, i.S, i.alpha, i.Dover);
 
-  drawMany([sim], i.D, i.Dover, "単発");
+  // α_center35 を計算
+  const alphaCenter35 = computeAlphaCenter35(i.D, i.theta, i.S);
+
+  drawMany([sim], i.D, i.Dover, "計算して表示", alphaCenter35);
 
   const stopX = sim.stop.x;
   const stopY = sim.stop.y;
-  const stopDist = Math.hypot(stopX + i.D, stopY);
+  const stopDist = Math.hypot(stopX, stopY);
+  const cupCenterX = 0;
+  const cupCenterY = i.D;
+  const distFromCup = Math.hypot(stopX - cupCenterX, stopY - cupCenterY);
 
-  const maxY = Math.max(...sim.path.map(p => Math.abs(p.y)));
-  const maxWidth = maxY / CUP;
+  const maxX = Math.max(...sim.path.map(p => Math.abs(p.x)));
+  const maxWidth = maxX / CUP;
 
   let text =
+    `【原点：ボール位置 (0,0)、カップ中心：(0,${i.D})】\n\n` +
     `距離 D: ${i.D} m\n` +
-    `傾斜 θ: ${i.theta}°\n` +
+    `傾斜角 θ: ${i.theta}° (右＋／左−)\n` +
     `スティンプ S: ${i.S} ft\n` +
-    `打ち出し角 α: ${i.alpha}°\n` +
-    `オーバー距離 Dover: ${i.Dover} m\n\n` +
+    `打ち出し角 α: ${i.alpha}° (反時計＋／時計−)\n` +
+    `オーバー距離 Dover: ${i.Dover} m (カップ縁基準)\n\n` +
     `一定減速度 aRoll: ${sim.aRoll.toFixed(3)} m/s²\n` +
     `初速 v0: ${sim.v0.toFixed(3)} m/s\n` +
     `停止時間 tStop: ${sim.tStop.toFixed(2)} s\n` +
     `カップ通過速度 vCup: ${sim.vCup !== null ? sim.vCup.toFixed(3) + " m/s" : "未通過"}\n\n` +
     `停止位置 X: ${stopX.toFixed(3)} m\n` +
     `停止位置 Y: ${stopY.toFixed(3)} m\n` +
-    `停止距離（打ち出し基準）: ${stopDist.toFixed(3)} m\n` +
-    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP\n`;
+    `停止距離（原点基準）: ${stopDist.toFixed(3)} m\n` +
+    `カップ中心からの距離: ${distFromCup.toFixed(3)} m\n` +
+    `最大幅（左右）: ±${maxWidth.toFixed(2)} カップ\n\n` +
+    `参考：縁から35cmオーバー時 Dover = 0.35 m\n`;
+
+  if (alphaCenter35 !== null) {
+    text += `縁35cmオーバー時：α_center35 = ${alphaCenter35.toFixed(1)} deg\n`;
+  } else {
+    text += `エラー：縁35cm条件でα_center35を算出できません\n`;
+  }
 
   result.textContent = text;
 }
 
-// α 5本比較
+// α 5本比較（打ち出し角を5条件比較）
+// ステップ：±1deg刻み
 function runAlpha5() {
   const i = getI();
+
+  if (!validateInputs(i)) {
+    result.textContent = "エラー\n入力値を確認してください";
+    setupCanvas();
+    const w = cv.width, h = cv.height;
+    ctx.fillStyle = "#d4f1d4";
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
   const sims = [];
   const baseAlpha = i.alpha;
-  const deltas = [-2, -1, 0, 1, 2];
+  const deltas = [-2, -1, 0, 1, 2];  // ±2degで5本
 
   deltas.forEach(d => {
     const a = baseAlpha + d;
     const sim = simulate2D(i.D, i.theta, i.S, a, i.Dover);
-    sim.color = d === 0 ? "#00ff66" : "#66ccff";
+    sim.color = d === 0 ? "#0066cc" : "#66ccff";
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, i.Dover, `α 5本 (中心 ${baseAlpha}°)`);
+  drawMany(sims, i.D, i.Dover, `打ち出し角を5条件比較 (中心 ${baseAlpha}°)`);
 
   let best = null;
   sims.forEach((sim, idx) => {
-    const distCup = Math.hypot(sim.stop.x, sim.stop.y);
+    const cupCenterX = 0;
+    const cupCenterY = i.D;
+    const distCup = Math.hypot(sim.stop.x - cupCenterX, sim.stop.y - cupCenterY);
     if (!best || distCup < best.dist) {
       best = { sim, idx, dist: distCup, alpha: baseAlpha + deltas[idx] };
     }
   });
 
   result.textContent =
-    `α 5本比較\n最適 α: ${best.alpha}°（カップ中心から ${best.dist.toFixed(3)} m）`;
+    `打ち出し角を5条件比較\n最適 α: ${best.alpha}°（カップ中心から ${best.dist.toFixed(3)} m）`;
 }
 
-// θ 5本比較
+// θ 5本比較（傾斜角を5条件比較）
+// ステップ：±0.5deg刻み
 function runTheta5() {
   const i = getI();
+
+  if (!validateInputs(i)) {
+    result.textContent = "エラー\n入力値を確認してください";
+    setupCanvas();
+    const w = cv.width, h = cv.height;
+    ctx.fillStyle = "#d4f1d4";
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
   const sims = [];
   const baseTheta = i.theta;
-  const deltas = [-1, -0.5, 0, 0.5, 1];
+  const deltas = [-1.0, -0.5, 0, 0.5, 1.0];  // ±0.5deg刻みで5本
 
   deltas.forEach(d => {
     const th = baseTheta + d;
     const sim = simulate2D(i.D, th, i.S, i.alpha, i.Dover);
-    sim.color = d === 0 ? "#ff66cc" : "#cc99ff";
+    sim.color = d === 0 ? "#ff6600" : "#ffaa66";
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, i.Dover, `θ 5本 (中心 ${baseTheta}°)`);
+  drawMany(sims, i.D, i.Dover, `傾斜角を5条件比較 (中心 ${baseTheta}°)`);
 
-  result.textContent = `θ 5本比較（中心 ${baseTheta}°）`;
+  result.textContent = `傾斜角を5条件比較（中心 ${baseTheta}°）`;
 }
 
-// Dover 5本比較
+// Dover 5本比較（タッチを5条件比較）
+// ステップ：±0.1m刻み
 function runDover5() {
   const i = getI();
+
+  if (!validateInputs(i)) {
+    result.textContent = "エラー\n入力値を確認してください";
+    setupCanvas();
+    const w = cv.width, h = cv.height;
+    ctx.fillStyle = "#d4f1d4";
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
   const sims = [];
   const baseDover = i.Dover;
-  const deltas = [-0.5, -0.25, 0, 0.25, 0.5];
+  const deltas = [-0.2, -0.1, 0, 0.1, 0.2];  // ±0.1m刻みで5本
 
   deltas.forEach(d => {
     const DoverVal = Math.max(0, baseDover + d);
     const sim = simulate2D(i.D, i.theta, i.S, i.alpha, DoverVal);
-    sim.color = d === 0 ? "#ffaa00" : "#ffdd66";
+    sim.color = d === 0 ? "#00cc00" : "#66dd66";
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, baseDover + 0.5, `Dover 5本 (中心 ${baseDover} m)`);
+  drawMany(sims, i.D, baseDover + 0.2, `タッチを5条件比較 (中心 ${baseDover} m)`);
 
   let best = null;
   sims.forEach((sim, idx) => {
-    const distCup = Math.hypot(sim.stop.x, sim.stop.y);
+    const cupCenterX = 0;
+    const cupCenterY = i.D;
+    const distCup = Math.hypot(sim.stop.x - cupCenterX, sim.stop.y - cupCenterY);
     if (!best || distCup < best.dist) {
       best = { sim, idx, dist: distCup, Dover: baseDover + deltas[idx] };
     }
   });
 
   result.textContent =
-    `Dover 5本比較\n最適 Dover: ${best.Dover.toFixed(2)} m（カップ中心から ${best.dist.toFixed(3)} m）`;
+    `タッチを5条件比較\n最適 Dover: ${best.Dover.toFixed(2)} m（カップ中心から ${best.dist.toFixed(3)} m）`;
 }
 
 // ================= Mouse / Interaction =================
