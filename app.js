@@ -49,6 +49,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   const path = [{ x, y }];
   let holed = false;
   let vCup = null;
+  let cupIndex = null;
   let tStop = 0;
 
   const estimatedStopTime = v0 / aRoll;
@@ -73,18 +74,16 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
 
     path.push({ x, y });
 
-    const r = Math.hypot(x, y);
-    if (!holed && r <= CUP / 2) {
-      holed = true;
+    // カップ通過判定（break しない）
+    if (cupIndex === null && Math.hypot(x, y) <= CUP / 2) {
+      cupIndex = path.length - 1;
       vCup = v;
-      tStop = t;
-      break;
     }
 
     tStop = t;
   }
 
-  return { path, stop: { x, y }, holed, v0, aRoll, tStop, vCup };
+  return { path, stop: { x, y }, holed, v0, aRoll, tStop, vCup, cupIndex };
 }
 
 // ================= Drawing =================
@@ -130,6 +129,7 @@ function drawMany(sims, D, Dover, title) {
   const tx = x => (x - xMin) * sx;
   const ty = y => h - (y - yMin) * sy;
 
+  // グリッド
   ctx.strokeStyle = "rgba(255,255,255,0.15)";
   for (let xm = Math.ceil(xMin); xm <= xMax; xm++) {
     ctx.beginPath();
@@ -138,18 +138,25 @@ function drawMany(sims, D, Dover, title) {
     ctx.stroke();
   }
 
+  // カップ
   ctx.fillStyle = "#e60000";
   ctx.beginPath();
   ctx.arc(tx(0), ty(0), 7, 0, Math.PI * 2);
   ctx.fill();
 
+  // 軌跡
   sims.forEach((sim, idx) => {
-    const color = sim.color || (sim.holed ? "#00ff66" : "#ffffff");
-    ctx.strokeStyle = color;
+
+    const colorBefore = sim.color || "#ffffff";
+    const colorAfter  = "#00ff66";
+
     ctx.lineWidth = idx === 0 ? 3 : 2;
 
+    // カップ前
+    ctx.strokeStyle = colorBefore;
     ctx.beginPath();
     sim.path.forEach((p, i) => {
+      if (sim.cupIndex !== null && i >= sim.cupIndex) return;
       const px = tx(p.x);
       const py = ty(p.y);
       if (i === 0) ctx.moveTo(px, py);
@@ -157,7 +164,22 @@ function drawMany(sims, D, Dover, title) {
     });
     ctx.stroke();
 
-    ctx.fillStyle = color;
+    // カップ後
+    if (sim.cupIndex !== null) {
+      ctx.strokeStyle = colorAfter;
+      ctx.beginPath();
+      sim.path.forEach((p, i) => {
+        if (i < sim.cupIndex) return;
+        const px = tx(p.x);
+        const py = ty(p.y);
+        if (i === sim.cupIndex) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+    }
+
+    // 停止点
+    ctx.fillStyle = colorAfter;
     ctx.beginPath();
     ctx.arc(tx(sim.stop.x), ty(sim.stop.y), 4, 0, Math.PI * 2);
     ctx.fill();
@@ -205,7 +227,7 @@ function runSingle() {
     `停止位置 X: ${stopX.toFixed(3)} m\n` +
     `停止位置 Y: ${stopY.toFixed(3)} m\n` +
     `停止距離（打ち出し基準）: ${stopDist.toFixed(3)} m\n` +
-    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP\n\n`;
+    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP\n`;
 
   result.textContent = text;
 }
