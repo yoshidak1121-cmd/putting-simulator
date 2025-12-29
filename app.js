@@ -12,9 +12,10 @@ const Dover    = document.getElementById("Dover");
 
 const run       = document.getElementById("run");
 const reset     = document.getElementById("reset");
-const runAlpha5 = document.getElementById("runAlpha5");
-const runTheta5 = document.getElementById("runTheta5");
-const runDover5 = document.getElementById("runDover5");
+const btnRunAlpha5 = document.getElementById("runAlpha5");
+const btnRunTheta5 = document.getElementById("runTheta5");
+const btnRunDover5 = document.getElementById("runDover5");
+
 
 const result    = document.getElementById("result");
 
@@ -358,9 +359,10 @@ reset.onclick = () => {
   runSingle();
 };
 
-runAlpha5.onclick = runAlpha5;
-runTheta5.onclick = runTheta5;
-runDover5.onclick = runDover5;
+btnRunAlpha5.onclick = runAlpha5;
+btnRunTheta5.onclick = runTheta5;
+btnRunDover5.onclick = runDover5;
+
 
 window.addEventListener("resize", runSingle);
 runSingle();
