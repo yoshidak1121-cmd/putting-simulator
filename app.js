@@ -145,7 +145,7 @@ function drawMany(sims, D, Dover, title) {
   const w = cv.width, h = cv.height;
   ctx.clearRect(0, 0, w, h);
 
-  const A = CUP / 2;
+  const A = CUP / 2;        // カップ半径（m）
 
   // --- 1) 座標変換（ボールを原点に） ---
   sims.forEach(sim => {
@@ -242,7 +242,6 @@ ctx.fill();
 
   
  // --- 5) カップの円（実寸直径で描画：真円） ---
-const A = CUP / 2;        // カップ半径（m）
 const r = A * sy;         // ピクセル半径（Yスケールで真円を保証）
 
 // カップ中心（ボール原点座標系）
