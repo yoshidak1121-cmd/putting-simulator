@@ -32,6 +32,9 @@ function simulate(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   const theta = deg2rad(thetaDeg);
   const aSlopeY = -g * Math.tan(theta);
 
+  // ---- 速度依存摩擦係数 ----
+  const k = aRoll / v0;  // 初速での摩擦が同じになるよう調整
+
   const path = [{ x, y }];
   let holed = false;
 
@@ -39,22 +42,26 @@ function simulate(D, thetaDeg, stimpFt, alphaDeg, Dover) {
     const v = Math.hypot(vx, vy);
     if (v < 0.03) break;
 
-    const ax = -aRoll * vx / (v + 1e-9);
-    const ay = -aRoll * vy / (v + 1e-9) + aSlopeY;
+    // ---- 速度依存摩擦 ----
+    const ax = -k * vx;
+    const ay = -k * vy + aSlopeY;
 
     vx += ax * dt;
     vy += ay * dt;
     x += vx * dt;
     y += vy * dt;
 
-    if (path.length % 2 === 0) path.push({ x, y });
+    path.push({ x, y });
 
     if (Math.hypot(x, y) <= cupR) {
       holed = true;
-      path.push({ x, y });
       break;
     }
   }
+
+  // 最低2点は描画できるように保証
+  if (path.length < 2) path.push({ x, y });
+
   return { path, stop: { x, y }, holed };
 }
 
@@ -70,11 +77,9 @@ function setupCanvas() {
 
 function drawAxes(sims, D, Dover) {
 
-  // ---- X axis (meters) ----
   const xMin = -(D + 1);
   const xMax = Dover + 1;
 
-  // ---- Y axis (cups) ----
   let yMin = Infinity, yMax = -Infinity;
   sims.forEach(sim =>
     sim.path.forEach(p => {
@@ -86,7 +91,6 @@ function drawAxes(sims, D, Dover) {
   let yLo = Math.floor(yMin) - 1;
   let yHi = Math.ceil(yMax) + 1;
 
-  // minimum ±2 cups
   yLo = Math.min(yLo, -2);
   yHi = Math.max(yHi, 2);
 
@@ -111,7 +115,6 @@ function drawMany(sims, D, Dover, title) {
   ctx.strokeStyle = "rgba(255,255,255,0.15)";
   ctx.lineWidth = 1;
 
-  // X grid (1m)
   for (let xm = Math.ceil(xMin); xm <= xMax; xm++) {
     const px = tx(xm);
     ctx.beginPath();
@@ -120,7 +123,6 @@ function drawMany(sims, D, Dover, title) {
     ctx.stroke();
   }
 
-  // Y grid (1 cup)
   for (let yc = yLo; yc <= yHi; yc++) {
     const py = ty(yc);
     ctx.lineWidth = (yc === 0) ? 2 : (Math.abs(yc) === 1 ? 1.5 : 1);
@@ -167,7 +169,6 @@ function drawMany(sims, D, Dover, title) {
     ctx.fill();
   });
 
-  // title
   if (title) {
     ctx.fillStyle = "#fff";
     ctx.fillText(title, 10, 14);
@@ -220,7 +221,6 @@ function runSweep(type) {
   }
 }
 
-// events
 run.onclick = runSingle;
 runAlpha5.onclick = () => runSweep("alpha");
 runTheta5.onclick = () => runSweep("theta");
