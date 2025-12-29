@@ -63,21 +63,22 @@ function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
 // Dover（合成距離）に一致する v0 を反復計算で求める
 function findV0ForDover(D, theta, S, alpha, Dover) {
 
-  let v0 = 1.0; // 初期推定（適当でOK）
+  let v0 = 1.0; // 初期推定
 
   for (let iter = 0; iter < 12; iter++) {
 
     const sim = simulateWithV0(D, theta, S, alpha, v0);
 
-    // 合成距離（カップから停止点までの直線距離）
     const actual = Math.hypot(sim.stop.x, sim.stop.y);
-
     const error = actual - Dover;
 
     if (Math.abs(error) < 0.01) break;
 
-    // 誤差に応じて v0 を調整
-    v0 *= (1 - error * 0.4);
+    // 安定収束する更新式
+    v0 = v0 - error * 0.2;
+
+    // v0 が負やゼロにならないようにする
+    if (v0 < 0.01) v0 = 0.01;
   }
 
   return v0;
