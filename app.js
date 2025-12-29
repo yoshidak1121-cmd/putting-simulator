@@ -12,6 +12,7 @@ const Dover    = document.getElementById("Dover");
 
 const run       = document.getElementById("run");
 const reset     = document.getElementById("reset");
+const resetViewOnly = document.getElementById("resetViewOnly");
 const btnRunAlpha5 = document.getElementById("runAlpha5");
 const btnRunTheta5 = document.getElementById("runTheta5");
 const btnRunDover5 = document.getElementById("runDover5");
@@ -200,7 +201,7 @@ function autoInitViewFromInputs() {
 }
 
 // drawMany: view 対応版
-function drawMany(sims, D, Dover, title) {
+function drawMany(sims, D, Dover, title, showLegend = false) {
 
   setupCanvas();
   const w = cv.width, h = cv.height;
@@ -348,6 +349,39 @@ function drawMany(sims, D, Dover, title) {
   ctx.font = "12px sans-serif";
   ctx.fillText(title, 10, 14);
 
+  // --- Legend (凡例) ---
+  if (showLegend && sims.length > 1) {
+    const legendX = 10;
+    const legendY = 30;
+    const lineLen = 30;
+    const lineSpacing = 20;
+    
+    ctx.font = "11px sans-serif";
+    
+    // Center line
+    ctx.strokeStyle = sims[0].color || "#ffffff";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(legendX, legendY);
+    ctx.lineTo(legendX + lineLen, legendY);
+    ctx.stroke();
+    ctx.fillStyle = "#fff";
+    ctx.fillText("中心線", legendX + lineLen + 6, legendY + 4);
+    
+    // Difference lines
+    if (sims.length > 1) {
+      const diffColor = sims[1].color || "#66ccff";
+      ctx.strokeStyle = diffColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(legendX, legendY + lineSpacing);
+      ctx.lineTo(legendX + lineLen, legendY + lineSpacing);
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.fillText("±差分", legendX + lineLen + 6, legendY + lineSpacing + 4);
+    }
+  }
+
   // --- 軸端ハンドル表示（視覚的に掴めるように） ---
   ctx.fillStyle = "rgba(255,255,255,0.6)";
   const handleSize = 6;
@@ -383,11 +417,12 @@ function runSingle() {
 
   const sim = simulate2D(i.D, i.theta, i.S, i.alpha, i.Dover);
 
-  drawMany([sim], i.D, i.Dover, "単発");
+  drawMany([sim], i.D, i.Dover, "単発", false);
 
-  const stopX = sim.stop.x;
-  const stopY = sim.stop.y;
-  const stopDist = Math.hypot(stopX + i.D, stopY);
+  // ボール原点座標系に変換して表示
+  const stopX_display = sim.stop.x + i.D;
+  const stopY_display = sim.stop.y;
+  const stopDist = Math.hypot(stopX_display - i.D, stopY_display);
 
   const maxY = Math.max(...sim.path.map(p => Math.abs(p.y)));
   const maxWidth = maxY / CUP;
@@ -402,9 +437,9 @@ function runSingle() {
     `初速 v0: ${sim.v0.toFixed(3)} m/s\n` +
     `停止時間 tStop: ${sim.tStop.toFixed(2)} s\n` +
     `カップ通過速度 vCup: ${sim.vCup !== null ? sim.vCup.toFixed(3) + " m/s" : "未通過"}\n\n` +
-    `停止位置 X: ${stopX.toFixed(3)} m\n` +
-    `停止位置 Y: ${stopY.toFixed(3)} m\n` +
-    `停止距離（打ち出し基準）: ${stopDist.toFixed(3)} m\n` +
+    `停止位置 X（ボール原点）: ${stopX_display.toFixed(3)} m\n` +
+    `停止位置 Y（ボール原点）: ${stopY_display.toFixed(3)} m\n` +
+    `停止距離（カップ中心から）: ${stopDist.toFixed(3)} m\n` +
     `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP\n`;
 
   result.textContent = text;
@@ -421,21 +456,38 @@ function runAlpha5() {
     const a = baseAlpha + d;
     const sim = simulate2D(i.D, i.theta, i.S, a, i.Dover);
     sim.color = d === 0 ? "#00ff66" : "#66ccff";
+    sim.alphaValue = a;
+    sim.delta = d;
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, i.Dover, `α 5本 (中心 ${baseAlpha}°)`);
+  drawMany(sims, i.D, i.Dover, `α 5本 (中心 ${baseAlpha}°)`, true);
 
-  let best = null;
-  sims.forEach((sim, idx) => {
+  // テーブル形式で結果を表示
+  let html = `<strong>α 5本比較（中心 ${baseAlpha}°）</strong>\n\n`;
+  html += `<table>`;
+  html += `<tr><th>α [°]</th><th>Δα</th><th>入った</th><th>vCup [m/s]</th><th>停止X [m]</th><th>停止Y [m]</th><th>カップ中心距離 [m]</th></tr>`;
+  
+  sims.forEach((sim) => {
+    const stopX = sim.stop.x + i.D;
+    const stopY = sim.stop.y;
     const distCup = Math.hypot(sim.stop.x, sim.stop.y);
-    if (!best || distCup < best.dist) {
-      best = { sim, idx, dist: distCup, alpha: baseAlpha + deltas[idx] };
-    }
+    const holedText = sim.holed ? "○" : "×";
+    const vCupText = sim.vCup !== null ? sim.vCup.toFixed(3) : "-";
+    
+    html += `<tr>`;
+    html += `<td>${sim.alphaValue.toFixed(1)}</td>`;
+    html += `<td>${sim.delta > 0 ? '+' : ''}${sim.delta.toFixed(1)}</td>`;
+    html += `<td>${holedText}</td>`;
+    html += `<td>${vCupText}</td>`;
+    html += `<td>${stopX.toFixed(3)}</td>`;
+    html += `<td>${stopY.toFixed(3)}</td>`;
+    html += `<td>${distCup.toFixed(3)}</td>`;
+    html += `</tr>`;
   });
-
-  result.textContent =
-    `α 5本比較\n最適 α: ${best.alpha}°（カップ中心から ${best.dist.toFixed(3)} m）`;
+  
+  html += `</table>`;
+  result.innerHTML = html;
 }
 
 // θ 5本比較
@@ -449,12 +501,38 @@ function runTheta5() {
     const th = baseTheta + d;
     const sim = simulate2D(i.D, th, i.S, i.alpha, i.Dover);
     sim.color = d === 0 ? "#ff66cc" : "#cc99ff";
+    sim.thetaValue = th;
+    sim.delta = d;
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, i.Dover, `θ 5本 (中心 ${baseTheta}°)`);
+  drawMany(sims, i.D, i.Dover, `θ 5本 (中心 ${baseTheta}°)`, true);
 
-  result.textContent = `θ 5本比較（中心 ${baseTheta}°）`;
+  // テーブル形式で結果を表示
+  let html = `<strong>θ 5本比較（中心 ${baseTheta}°）</strong>\n\n`;
+  html += `<table>`;
+  html += `<tr><th>θ [°]</th><th>Δθ</th><th>入った</th><th>vCup [m/s]</th><th>停止X [m]</th><th>停止Y [m]</th><th>カップ中心距離 [m]</th></tr>`;
+  
+  sims.forEach((sim) => {
+    const stopX = sim.stop.x + i.D;
+    const stopY = sim.stop.y;
+    const distCup = Math.hypot(sim.stop.x, sim.stop.y);
+    const holedText = sim.holed ? "○" : "×";
+    const vCupText = sim.vCup !== null ? sim.vCup.toFixed(3) : "-";
+    
+    html += `<tr>`;
+    html += `<td>${sim.thetaValue.toFixed(1)}</td>`;
+    html += `<td>${sim.delta > 0 ? '+' : ''}${sim.delta.toFixed(1)}</td>`;
+    html += `<td>${holedText}</td>`;
+    html += `<td>${vCupText}</td>`;
+    html += `<td>${stopX.toFixed(3)}</td>`;
+    html += `<td>${stopY.toFixed(3)}</td>`;
+    html += `<td>${distCup.toFixed(3)}</td>`;
+    html += `</tr>`;
+  });
+  
+  html += `</table>`;
+  result.innerHTML = html;
 }
 
 // Dover 5本比較
@@ -468,21 +546,38 @@ function runDover5() {
     const DoverVal = Math.max(0, baseDover + d);
     const sim = simulate2D(i.D, i.theta, i.S, i.alpha, DoverVal);
     sim.color = d === 0 ? "#ffaa00" : "#ffdd66";
+    sim.doverValue = DoverVal;
+    sim.delta = d;
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, baseDover + 0.5, `Dover 5本 (中心 ${baseDover} m)`);
+  drawMany(sims, i.D, baseDover + 0.5, `Dover 5本 (中心 ${baseDover} m)`, true);
 
-  let best = null;
-  sims.forEach((sim, idx) => {
+  // テーブル形式で結果を表示
+  let html = `<strong>Dover 5本比較（中心 ${baseDover} m）</strong>\n\n`;
+  html += `<table>`;
+  html += `<tr><th>Dover [m]</th><th>ΔDover</th><th>入った</th><th>vCup [m/s]</th><th>停止X [m]</th><th>停止Y [m]</th><th>カップ中心距離 [m]</th></tr>`;
+  
+  sims.forEach((sim) => {
+    const stopX = sim.stop.x + i.D;
+    const stopY = sim.stop.y;
     const distCup = Math.hypot(sim.stop.x, sim.stop.y);
-    if (!best || distCup < best.dist) {
-      best = { sim, idx, dist: distCup, Dover: baseDover + deltas[idx] };
-    }
+    const holedText = sim.holed ? "○" : "×";
+    const vCupText = sim.vCup !== null ? sim.vCup.toFixed(3) : "-";
+    
+    html += `<tr>`;
+    html += `<td>${sim.doverValue.toFixed(2)}</td>`;
+    html += `<td>${sim.delta > 0 ? '+' : ''}${sim.delta.toFixed(2)}</td>`;
+    html += `<td>${holedText}</td>`;
+    html += `<td>${vCupText}</td>`;
+    html += `<td>${stopX.toFixed(3)}</td>`;
+    html += `<td>${stopY.toFixed(3)}</td>`;
+    html += `<td>${distCup.toFixed(3)}</td>`;
+    html += `</tr>`;
   });
-
-  result.textContent =
-    `Dover 5本比較\n最適 Dover: ${best.Dover.toFixed(2)} m（カップ中心から ${best.dist.toFixed(3)} m）`;
+  
+  html += `</table>`;
+  result.innerHTML = html;
 }
 
 // ================= Mouse / Interaction =================
@@ -602,6 +697,13 @@ reset.onclick = () => {
   Dover.value = 0.5;
   // リセット時は view を自動初期化する
   view.initialized = false;
+  runSingle();
+};
+
+resetViewOnly.onclick = () => {
+  // 入力値はそのまま、view だけリセット
+  view.initialized = false;
+  autoInitViewFromInputs();
   runSingle();
 };
 
