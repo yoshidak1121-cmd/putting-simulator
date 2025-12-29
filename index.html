@@ -7,12 +7,12 @@
 </head>
 <body>
 
-<div id="container">
+<div id="layout">
 
-  <h1>Putting Simulator</h1>
+  <!-- 左：設定パネル -->
+  <div id="leftPanel">
 
-  <!-- 設定パネル -->
-  <div id="panel">
+    <h2>設定</h2>
 
     <div class="row">
       <label>距離 D [m]</label>
@@ -60,11 +60,17 @@
 
   </div>
 
-  <!-- キャンバス -->
-  <canvas id="cv"></canvas>
+  <!-- 中央：データ出力 -->
+  <div id="centerPanel">
+    <h2>データ出力</h2>
+    <pre id="result"></pre>
+  </div>
 
-  <!-- 結果表示 -->
-  <pre id="result"></pre>
+  <!-- 右：キャンバス -->
+  <div id="rightPanel">
+    <h2>軌跡</h2>
+    <canvas id="cv"></canvas>
+  </div>
 
 </div>
 
