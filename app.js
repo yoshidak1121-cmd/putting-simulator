@@ -235,8 +235,13 @@ function drawMany(sims, D, Dover, title, showLegend = false) {
     view.yMax = view.yMin + 1;
   }
 
-  const sx = w / (view.xMax - view.xMin);
-  const sy = h / (view.yMax - view.yMin);
+  // 等倍スケール（XとYで同じm/pixel比）
+  const rangeX = view.xMax - view.xMin;
+  const rangeY = view.yMax - view.yMin;
+  const scale = Math.min(w / rangeX, h / rangeY);
+  
+  const sx = scale;
+  const sy = scale;
 
   const tx = x => (x - view.xMin) * sx;
   const ty = y => h - (y - view.yMin) * sy;
@@ -256,18 +261,14 @@ function drawMany(sims, D, Dover, title, showLegend = false) {
     ctx.stroke();
   }
 
-  // --- グリッド（Y：Aずらしの2A刻み） ---
+  // --- グリッド（Y：1m刻み） ---
   ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  for (let y = A; y <= view.yMax; y += 2 * A) {
+  const ymStart = Math.ceil(view.yMin);
+  const ymEnd = Math.floor(view.yMax);
+  for (let ym = ymStart; ym <= ymEnd; ym++) {
     ctx.beginPath();
-    ctx.moveTo(0, ty(y));
-    ctx.lineTo(w, ty(y));
-    ctx.stroke();
-  }
-  for (let y = -A; y >= view.yMin; y -= 2 * A) {
-    ctx.beginPath();
-    ctx.moveTo(0, ty(y));
-    ctx.lineTo(w, ty(y));
+    ctx.moveTo(0, ty(ym));
+    ctx.lineTo(w, ty(ym));
     ctx.stroke();
   }
 
@@ -287,21 +288,66 @@ function drawMany(sims, D, Dover, title, showLegend = false) {
   ctx.lineTo(tx(0), h);
   ctx.stroke();
 
-  // --- ボール（白丸・実寸） ---
+  // --- ボール（ゴルフボール風・実寸） ---
   const BALL_DIAM = 0.04267;
   const BALL_R = BALL_DIAM / 2;
   const rBall = BALL_R * sy;
 
+  // ゴルフボールのベース
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(tx(0), ty(0), Math.max(1, rBall), 0, Math.PI * 2);
+  ctx.arc(tx(0), ty(0), Math.max(2, rBall), 0, Math.PI * 2);
   ctx.fill();
-
-  // --- カップ（実寸） ---
-  const rCup = A * sy;
-  ctx.fillStyle = "#e60000";
+  
+  // ゴルフボールのディンプル（くぼみ）パターン
+  if (rBall >= 3) {
+    ctx.fillStyle = "rgba(200,200,200,0.3)";
+    const dimpleR = rBall / 5;
+    const dimples = [
+      [0, -rBall * 0.4],
+      [-rBall * 0.35, -rBall * 0.2],
+      [rBall * 0.35, -rBall * 0.2],
+      [-rBall * 0.35, rBall * 0.2],
+      [rBall * 0.35, rBall * 0.2],
+      [0, rBall * 0.4]
+    ];
+    dimples.forEach(([dx, dy]) => {
+      ctx.beginPath();
+      ctx.arc(tx(0) + dx, ty(0) + dy, Math.max(1, dimpleR), 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  
+  // ボールの輪郭
+  ctx.strokeStyle = "rgba(150,150,150,0.5)";
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(tx(D), ty(0), Math.max(1, rCup), 0, Math.PI * 2);
+  ctx.arc(tx(0), ty(0), Math.max(2, rBall), 0, Math.PI * 2);
+  ctx.stroke();
+
+  // --- カップ（ゴルフカップ風・実寸） ---
+  const rCup = A * sy;
+  
+  // カップの外側（縁）
+  ctx.fillStyle = "#888888";
+  ctx.beginPath();
+  ctx.arc(tx(D), ty(0), Math.max(2, rCup * 1.05), 0, Math.PI * 2);
+  ctx.fill();
+  
+  // カップの内側（黒い穴）
+  ctx.fillStyle = "#000000";
+  ctx.beginPath();
+  ctx.arc(tx(D), ty(0), Math.max(2, rCup), 0, Math.PI * 2);
+  ctx.fill();
+  
+  // カップの影（深さの表現）
+  const gradient = ctx.createRadialGradient(tx(D), ty(0), 0, tx(D), ty(0), rCup);
+  gradient.addColorStop(0, "rgba(0,0,0,0.9)");
+  gradient.addColorStop(0.7, "rgba(0,0,0,0.6)");
+  gradient.addColorStop(1, "rgba(0,0,0,0.3)");
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(tx(D), ty(0), Math.max(2, rCup), 0, Math.PI * 2);
   ctx.fill();
 
   // --- 軌跡 ---
