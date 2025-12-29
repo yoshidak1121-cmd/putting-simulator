@@ -42,6 +42,16 @@ function computeAlphaCenter35(D, thetaDeg, stimpFt) {
   const cupCenterX = 0;
   const cupCenterY = D;
   
+  // まず、Dover35 でカップ中心まで到達可能かチェック
+  // α=0で試してみる
+  const testSim = simulate2D(D, thetaDeg, stimpFt, 0, Dover35);
+  const maxY = Math.max(...testSim.path.map(p => p.y));
+  
+  if (maxY < D * 0.8) {
+    // Dover35ではDの80%にも到達しない → 計算不可
+    return null;
+  }
+  
   // 二分法の範囲設定（傾斜がある場合は範囲を広げる）
   let alphaMin = -89;  // deg（ほぼ真横）
   let alphaMax = 89;   // deg
@@ -62,16 +72,19 @@ function computeAlphaCenter35(D, thetaDeg, stimpFt) {
       
       if ((p0.y <= D && D <= p1.y) || (p1.y <= D && D <= p0.y)) {
         // 線形補間
-        const t = (D - p0.y) / (p1.y - p0.y);
-        xAtD = p0.x + t * (p1.x - p0.x);
+        if (Math.abs(p1.y - p0.y) > 1e-9) {
+          const t = (D - p0.y) / (p1.y - p0.y);
+          xAtD = p0.x + t * (p1.x - p0.x);
+        } else {
+          xAtD = (p0.x + p1.x) / 2;
+        }
         break;
       }
     }
     
     if (xAtD === null) {
       // y=D に到達しなかった場合
-      // 傾斜が強すぎる場合など、αを調整する必要がある
-      // 最終位置が D より手前なら、より大きなα（左向き）が必要
+      // 最終位置が D より手前なら、より左向き（負のα）が必要
       const lastY = sim.path[sim.path.length - 1].y;
       if (lastY < D) {
         // 到達せず → より左向き（αを小さく）
