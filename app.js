@@ -185,6 +185,23 @@ function drawMany(sims, D, Dover, title) {
   const tx = x => (x - xMin) * sx;
   const ty = y => h - (y - yMin) * sy;
 
+  // --- 基準線（ボール位置を原点とした X/Y 軸） ---
+
+// Y=0 の水平線（X軸）
+ctx.strokeStyle = "rgba(255,255,255,0.4)";
+ctx.lineWidth = 1.5;
+ctx.beginPath();
+ctx.moveTo(0, ty(0));
+ctx.lineTo(w, ty(0));
+ctx.stroke();
+
+// X=0 の垂直線（Y軸）
+ctx.beginPath();
+ctx.moveTo(tx(0), 0);
+ctx.lineTo(tx(0), h);
+ctx.stroke();
+
+  
   // --- 3) グリッド線（X：1m刻み） ---
   ctx.strokeStyle = "rgba(255,255,255,0.15)";
   for (let xm = Math.ceil(xMin); xm <= xMax; xm++) {
@@ -208,13 +225,35 @@ function drawMany(sims, D, Dover, title) {
     ctx.stroke();
   }
 
-  // --- 5) カップの円（ピクセル固定） ---
-  const cupX = tx(D);
-  const cupY = ty(0);
-  ctx.fillStyle = "#e60000";
-  ctx.beginPath();
-  ctx.arc(cupX, cupY, 7, 0, Math.PI * 2);
-  ctx.fill();
+// --- ボール（白丸・実寸） ---
+const BALL_DIAM = 0.04267;      // ゴルフボール直径（m）
+const BALL_R = BALL_DIAM / 2;   // 半径（m）
+const rBall = BALL_R * sy;      // ピクセル半径（Yスケールで真円）
+
+// ボール位置は原点 (0,0)
+const ballX = tx(0);
+const ballY = ty(0);
+
+ctx.fillStyle = "#ffffff";
+ctx.beginPath();
+ctx.arc(ballX, ballY, rBall, 0, Math.PI * 2);
+ctx.fill();
+
+
+  
+ // --- 5) カップの円（実寸直径で描画：真円） ---
+const A = CUP / 2;        // カップ半径（m）
+const r = A * sy;         // ピクセル半径（Yスケールで真円を保証）
+
+// カップ中心（ボール原点座標系）
+const cupX = tx(D);
+const cupY = ty(0);
+
+ctx.fillStyle = "#e60000";
+ctx.beginPath();
+ctx.arc(cupX, cupY, r, 0, Math.PI * 2);
+ctx.fill();
+
 
   // --- 6) 軌跡描画 ---
   sims.forEach((sim, idx) => {
