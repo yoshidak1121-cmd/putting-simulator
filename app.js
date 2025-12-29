@@ -246,6 +246,15 @@ function runSingle() {
   const i = getI();
   const sim = simulate(i.D, i.theta, i.S, i.alpha, i.Dover);
   drawMany([sim], i.D, i.Dover, "単発");
+
+  // ---- 計算結果の表示 ----
+  const dist = Math.hypot(sim.stop.x, sim.stop.y);
+  const maxY = Math.max(...sim.path.map(p => Math.abs(p.y)));
+  const maxWidth = maxY / CUP;
+
+  result.textContent =
+    `停止距離（合成）: ${dist.toFixed(3)} m\n` +
+    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP`;
 }
 
 function runSweep(type) {
