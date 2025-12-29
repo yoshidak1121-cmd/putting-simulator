@@ -1,14 +1,13 @@
 "use strict";
 
-const CUP = 0.108; // 1 cup = 10.8cm
+const CUP = 0.108;
 const deg2rad = d => d * Math.PI / 180;
 
 // ================= Physics =================
 
-// v0 を外から渡すバージョン（純粋な物理シミュレーション）
 function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
 
-  if (!isFinite(v0) || v0 < 0.03) v0 = 0.03; // 最低初速を保証
+  if (!isFinite(v0) || v0 < 0.03) v0 = 0.03;
 
   const dt = 0.01;
   const g = 9.80665;
@@ -60,11 +59,9 @@ function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
   return { path, stop: { x, y }, holed };
 }
 
-
-// Dover（合成距離）に一致する v0 を反復計算で求める
 function findV0ForDover(D, theta, S, alpha, Dover) {
 
-  let v0 = 1.2; // 初期推定を少し大きめに
+  let v0 = 1.2;
 
   for (let iter = 0; iter < 12; iter++) {
 
@@ -83,16 +80,13 @@ function findV0ForDover(D, theta, S, alpha, Dover) {
   return v0;
 }
 
-
-// Dover（合成距離）対応版 simulate()
 function simulate(D, theta, S, alpha, Dover) {
   const v0 = findV0ForDover(D, theta, S, alpha, Dover);
   return simulateWithV0(D, theta, S, alpha, v0);
 }
 
-
-
 // ================= Drawing =================
+
 const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
 
@@ -205,9 +199,8 @@ function drawMany(sims, D, Dover, title) {
   }
 }
 
-
-
 // ================= UI =================
+
 function getI() {
   return {
     D: +D.value,
