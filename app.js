@@ -145,25 +145,39 @@ function drawMany(sims, D, Dover, title) {
   const w = cv.width, h = cv.height;
   ctx.clearRect(0, 0, w, h);
 
-  let xMin = Infinity, xMax = -Infinity;
-  let yMin = Infinity, yMax = -Infinity;
+  const A = CUP / 2;
 
+  // --- 1) 座標変換（ボールを原点に） ---
   sims.forEach(sim => {
-    sim.path.forEach(p => {
-      xMin = Math.min(xMin, p.x);
-      xMax = Math.max(xMax, p.x);
-      yMin = Math.min(yMin, p.y);
-      yMax = Math.max(yMax, p.y);
-    });
+    sim.path2 = sim.path.map(p => ({
+      x: p.x + D,
+      y: p.y
+    }));
+    sim.stop2 = {
+      x: sim.stop.x + D,
+      y: sim.stop.y
+    };
   });
 
-  xMin -= 0.5;
-  xMax += 0.5;
+  // --- 2) X/Y 範囲決定 ---
+  let xMaxCandidate = 1;
+  let yMaxCandidate = 5 * A;
+  let yMinCandidate = -5 * A;
 
-  const baseYMin = -2 * CUP;
-  const baseYMax =  2 * CUP;
-  yMin = Math.min(yMin, baseYMin) - 0.2;
-  yMax = Math.max(yMax, baseYMax) + 0.2;
+  sims.forEach(sim => {
+    xMaxCandidate = Math.max(
+      xMaxCandidate,
+      Dover + 1,
+      sim.stop2.x
+    );
+    yMaxCandidate = Math.max(yMaxCandidate, sim.stop2.y + A);
+    yMinCandidate = Math.min(yMinCandidate, sim.stop2.y - A);
+  });
+
+  const xMin = -1;
+  const xMax = Math.ceil(xMaxCandidate);
+  const yMin = yMinCandidate;
+  const yMax = yMaxCandidate;
 
   const sx = w / (xMax - xMin);
   const sy = h / (yMax - yMin);
@@ -171,7 +185,7 @@ function drawMany(sims, D, Dover, title) {
   const tx = x => (x - xMin) * sx;
   const ty = y => h - (y - yMin) * sy;
 
-  // グリッド
+  // --- 3) グリッド線（X：1m刻み） ---
   ctx.strokeStyle = "rgba(255,255,255,0.15)";
   for (let xm = Math.ceil(xMin); xm <= xMax; xm++) {
     ctx.beginPath();
@@ -180,13 +194,29 @@ function drawMany(sims, D, Dover, title) {
     ctx.stroke();
   }
 
-  // カップ
+  // --- 4) グリッド線（Y：Aずらしの2A刻み） ---
+  for (let y = A; y <= yMax; y += 2 * A) {
+    ctx.beginPath();
+    ctx.moveTo(0, ty(y));
+    ctx.lineTo(w, ty(y));
+    ctx.stroke();
+  }
+  for (let y = -A; y >= yMin; y -= 2 * A) {
+    ctx.beginPath();
+    ctx.moveTo(0, ty(y));
+    ctx.lineTo(w, ty(y));
+    ctx.stroke();
+  }
+
+  // --- 5) カップの円（ピクセル固定） ---
+  const cupX = tx(D);
+  const cupY = ty(0);
   ctx.fillStyle = "#e60000";
   ctx.beginPath();
-  ctx.arc(tx(0), ty(0), 7, 0, Math.PI * 2);
+  ctx.arc(cupX, cupY, 7, 0, Math.PI * 2);
   ctx.fill();
 
-  // 軌跡
+  // --- 6) 軌跡描画 ---
   sims.forEach((sim, idx) => {
 
     const colorBefore = sim.color || "#ffffff";
@@ -197,7 +227,7 @@ function drawMany(sims, D, Dover, title) {
     // カップ前
     ctx.strokeStyle = colorBefore;
     ctx.beginPath();
-    sim.path.forEach((p, i) => {
+    sim.path2.forEach((p, i) => {
       if (sim.cupIndex !== null && i >= sim.cupIndex) return;
       const px = tx(p.x);
       const py = ty(p.y);
@@ -210,7 +240,7 @@ function drawMany(sims, D, Dover, title) {
     if (sim.cupIndex !== null) {
       ctx.strokeStyle = colorAfter;
       ctx.beginPath();
-      sim.path.forEach((p, i) => {
+      sim.path2.forEach((p, i) => {
         if (i < sim.cupIndex) return;
         const px = tx(p.x);
         const py = ty(p.y);
@@ -223,13 +253,15 @@ function drawMany(sims, D, Dover, title) {
     // 停止点
     ctx.fillStyle = colorAfter;
     ctx.beginPath();
-    ctx.arc(tx(sim.stop.x), ty(sim.stop.y), 4, 0, Math.PI * 2);
+    ctx.arc(tx(sim.stop2.x), ty(sim.stop2.y), 4, 0, Math.PI * 2);
     ctx.fill();
   });
 
+  // --- 7) タイトル ---
   ctx.fillStyle = "#fff";
   ctx.fillText(title, 10, 14);
 }
+
 
 // ================= UI =================
 
