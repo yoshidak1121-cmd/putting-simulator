@@ -16,8 +16,20 @@ const btnRunAlpha5 = document.getElementById("runAlpha5");
 const btnRunTheta5 = document.getElementById("runTheta5");
 const btnRunDover5 = document.getElementById("runDover5");
 
-
 const result    = document.getElementById("result");
+
+// ================= Viewport (パン・ズーム・軸ドラッグ用) =================
+let view = {
+  xMin: -1,
+  xMax: 5,
+  yMin: -0.3,
+  yMax: 0.3,
+  initialized: false
+};
+
+let isDragging = false;
+let dragMode = null;   // "pan", "xMin", "xMax", "yMin", "yMax"
+let lastMouse = { x: 0, y: 0 };
 
 // ================= Physics =================
 
@@ -135,10 +147,59 @@ const ctx = cv.getContext("2d");
 
 function setupCanvas() {
   const r = cv.getBoundingClientRect();
-  cv.width = r.width;
-  cv.height = r.height;
+  cv.width = Math.max(300, Math.floor(r.width));
+  cv.height = Math.max(200, Math.floor(r.height));
 }
 
+// 逆変換（ピクセル -> 物理座標）
+function tx_inv(px, w) {
+  return view.xMin + px * (view.xMax - view.xMin) / w;
+}
+function ty_inv(py, h) {
+  return view.yMin + (h - py) * (view.yMax - view.yMin) / h;
+}
+
+// 軸端ヒットテスト（px,py はキャンバス座標）
+function hitTestAxis(px, py, w, h) {
+  // 一時的な tx/ty を作る
+  const tx_local = x => (x - view.xMin) * (w / (view.xMax - view.xMin));
+  const ty_local = y => h - (y - view.yMin) * (h / (view.yMax - view.yMin));
+
+  const xMinPx = tx_local(view.xMin);
+  const xMaxPx = tx_local(view.xMax);
+  const yMinPx = ty_local(view.yMin);
+  const yMaxPx = ty_local(view.yMax);
+
+  const margin = 8; // ピクセル
+
+  if (Math.abs(px - xMinPx) < margin) return "xMin";
+  if (Math.abs(px - xMaxPx) < margin) return "xMax";
+  if (Math.abs(py - yMinPx) < margin) return "yMin";
+  if (Math.abs(py - yMaxPx) < margin) return "yMax";
+
+  return null;
+}
+
+// 自動初期ビュー（最初の一回だけ）
+function autoInitViewFromInputs() {
+  const i = getI();
+  const A = CUP / 2;
+
+  const xMin = -1;
+  const xMaxCandidate = Math.max(1, i.Dover + 1, i.D + i.Dover + 1);
+  const xMax = Math.ceil(xMaxCandidate);
+
+  const yMax = Math.max(5 * A, 0 + A);
+  const yMin = Math.min(-5 * A, 0 - A);
+
+  view.xMin = xMin;
+  view.xMax = xMax;
+  view.yMin = yMin;
+  view.yMax = yMax;
+  view.initialized = true;
+}
+
+// drawMany: view 対応版
 function drawMany(sims, D, Dover, title) {
 
   setupCanvas();
@@ -165,31 +226,29 @@ function drawMany(sims, D, Dover, title) {
   const yMin = view.yMin;
   const yMax = view.yMax;
 
-  const sx = w / (xMax - xMin);
-  const sy = h / (yMax - yMin);
+  // 防御: view が逆転していたら修正
+  if (xMax <= xMin + 1e-6) {
+    view.xMax = view.xMin + 1;
+  }
+  if (yMax <= yMin + 1e-6) {
+    view.yMax = view.yMin + 1;
+  }
 
-  const tx = x => (x - xMin) * sx;
-  const ty = y => h - (y - yMin) * sy;
+  const sx = w / (view.xMax - view.xMin);
+  const sy = h / (view.yMax - view.yMin);
 
-  // --- 基準線（X/Y軸） ---
-  ctx.strokeStyle = "rgba(255,255,255,0.4)";
-  ctx.lineWidth = 1.5;
+  const tx = x => (x - view.xMin) * sx;
+  const ty = y => h - (y - view.yMin) * sy;
 
-  // X軸
-  ctx.beginPath();
-  ctx.moveTo(0, ty(0));
-  ctx.lineTo(w, ty(0));
-  ctx.stroke();
-
-  // Y軸
-  ctx.beginPath();
-  ctx.moveTo(tx(0), 0);
-  ctx.lineTo(tx(0), h);
-  ctx.stroke();
+  // 背景クリア（必要なら色を変える）
+  ctx.clearRect(0, 0, w, h);
 
   // --- グリッド（X：1m刻み） ---
-  ctx.strokeStyle = "rgba(255,255,255,0.15)";
-  for (let xm = Math.ceil(xMin); xm <= xMax; xm++) {
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.lineWidth = 1;
+  const xmStart = Math.ceil(view.xMin);
+  const xmEnd = Math.floor(view.xMax);
+  for (let xm = xmStart; xm <= xmEnd; xm++) {
     ctx.beginPath();
     ctx.moveTo(tx(xm), 0);
     ctx.lineTo(tx(xm), h);
@@ -197,18 +256,35 @@ function drawMany(sims, D, Dover, title) {
   }
 
   // --- グリッド（Y：Aずらしの2A刻み） ---
-  for (let y = A; y <= yMax; y += 2 * A) {
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  for (let y = A; y <= view.yMax; y += 2 * A) {
     ctx.beginPath();
     ctx.moveTo(0, ty(y));
     ctx.lineTo(w, ty(y));
     ctx.stroke();
   }
-  for (let y = -A; y >= yMin; y -= 2 * A) {
+  for (let y = -A; y >= view.yMin; y -= 2 * A) {
     ctx.beginPath();
     ctx.moveTo(0, ty(y));
     ctx.lineTo(w, ty(y));
     ctx.stroke();
   }
+
+  // --- 基準線（X/Y軸） ---
+  ctx.strokeStyle = "rgba(255,255,255,0.4)";
+  ctx.lineWidth = 1.5;
+
+  // X軸 (y=0)
+  ctx.beginPath();
+  ctx.moveTo(0, ty(0));
+  ctx.lineTo(w, ty(0));
+  ctx.stroke();
+
+  // Y軸 (x=0)
+  ctx.beginPath();
+  ctx.moveTo(tx(0), 0);
+  ctx.lineTo(tx(0), h);
+  ctx.stroke();
 
   // --- ボール（白丸・実寸） ---
   const BALL_DIAM = 0.04267;
@@ -217,14 +293,14 @@ function drawMany(sims, D, Dover, title) {
 
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(tx(0), ty(0), rBall, 0, Math.PI * 2);
+  ctx.arc(tx(0), ty(0), Math.max(1, rBall), 0, Math.PI * 2);
   ctx.fill();
 
   // --- カップ（実寸） ---
   const rCup = A * sy;
   ctx.fillStyle = "#e60000";
   ctx.beginPath();
-  ctx.arc(tx(D), ty(0), rCup, 0, Math.PI * 2);
+  ctx.arc(tx(D), ty(0), Math.max(1, rCup), 0, Math.PI * 2);
   ctx.fill();
 
   // --- 軌跡 ---
@@ -269,10 +345,21 @@ function drawMany(sims, D, Dover, title) {
 
   // --- タイトル ---
   ctx.fillStyle = "#fff";
+  ctx.font = "12px sans-serif";
   ctx.fillText(title, 10, 14);
+
+  // --- 軸端ハンドル表示（視覚的に掴めるように） ---
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  const handleSize = 6;
+  // xMin handle
+  ctx.fillRect(tx(view.xMin) - handleSize/2, h - 18, handleSize, 12);
+  // xMax handle
+  ctx.fillRect(tx(view.xMax) - handleSize/2, h - 18, handleSize, 12);
+  // yMin handle
+  ctx.fillRect(4, ty(view.yMin) - handleSize/2, 12, handleSize);
+  // yMax handle
+  ctx.fillRect(4, ty(view.yMax) - handleSize/2, 12, handleSize);
 }
-
-
 
 // ================= UI =================
 
@@ -288,6 +375,12 @@ function getI() {
 
 function runSingle() {
   const i = getI();
+
+  // 初回は自動で view を初期化
+  if (!view.initialized) {
+    autoInitViewFromInputs();
+  }
+
   const sim = simulate2D(i.D, i.theta, i.S, i.alpha, i.Dover);
 
   drawMany([sim], i.D, i.Dover, "単発");
@@ -392,6 +485,114 @@ function runDover5() {
     `Dover 5本比較\n最適 Dover: ${best.Dover.toFixed(2)} m（カップ中心から ${best.dist.toFixed(3)} m）`;
 }
 
+// ================= Mouse / Interaction =================
+
+// mousedown
+cv.addEventListener("mousedown", e => {
+  const rect = cv.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+
+  const hit = hitTestAxis(px, py, cv.width, cv.height);
+
+  if (hit) {
+    dragMode = hit;   // 軸端ドラッグ
+  } else {
+    dragMode = "pan"; // パン
+  }
+
+  isDragging = true;
+  lastMouse.x = px;
+  lastMouse.y = py;
+
+  // 視覚的ヒント: カーソル変更
+  if (dragMode === "pan") cv.style.cursor = "grabbing";
+  else cv.style.cursor = "ew-resize";
+});
+
+// mousemove
+cv.addEventListener("mousemove", e => {
+  const rect = cv.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+
+  // ホバー時のカーソル変更（軸端に近ければハンドル）
+  if (!isDragging) {
+    const hit = hitTestAxis(px, py, cv.width, cv.height);
+    if (hit === "xMin" || hit === "xMax") cv.style.cursor = "ew-resize";
+    else if (hit === "yMin" || hit === "yMax") cv.style.cursor = "ns-resize";
+    else cv.style.cursor = "default";
+    return;
+  }
+
+  if (!isDragging) return;
+
+  const dx = px - lastMouse.x;
+  const dy = py - lastMouse.y;
+
+  const scaleX = (view.xMax - view.xMin) / cv.width;
+  const scaleY = (view.yMax - view.yMin) / cv.height;
+
+  if (dragMode === "pan") {
+    view.xMin -= dx * scaleX;
+    view.xMax -= dx * scaleX;
+    view.yMin += dy * scaleY;
+    view.yMax += dy * scaleY;
+  } else if (dragMode === "xMin") {
+    view.xMin = tx_inv(px, cv.width);
+    // 最低幅を確保
+    if (view.xMax - view.xMin < 0.1) view.xMin = view.xMax - 0.1;
+  } else if (dragMode === "xMax") {
+    view.xMax = tx_inv(px, cv.width);
+    if (view.xMax - view.xMin < 0.1) view.xMax = view.xMin + 0.1;
+  } else if (dragMode === "yMin") {
+    view.yMin = ty_inv(py, cv.height);
+    if (view.yMax - view.yMin < 0.01) view.yMin = view.yMax - 0.01;
+  } else if (dragMode === "yMax") {
+    view.yMax = ty_inv(py, cv.height);
+    if (view.yMax - view.yMin < 0.01) view.yMax = view.yMin + 0.01;
+  }
+
+  lastMouse.x = px;
+  lastMouse.y = py;
+
+  runSingle(); // 再描画
+});
+
+// mouseup / mouseleave
+const endDrag = () => {
+  isDragging = false;
+  dragMode = null;
+  cv.style.cursor = "default";
+};
+cv.addEventListener("mouseup", endDrag);
+cv.addEventListener("mouseleave", endDrag);
+
+// wheel (ズーム)
+cv.addEventListener("wheel", e => {
+  e.preventDefault();
+
+  // ズーム係数（微調整可能）
+  const zoomFactor = e.deltaY > 0 ? 1.08 : 0.92;
+
+  // マウス位置を中心にズーム
+  const rect = cv.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+
+  const mx = tx_inv(px, cv.width);
+  const my = ty_inv(py, cv.height);
+
+  view.xMin = mx + (view.xMin - mx) * zoomFactor;
+  view.xMax = mx + (view.xMax - mx) * zoomFactor;
+  view.yMin = my + (view.yMin - my) * zoomFactor;
+  view.yMax = my + (view.yMax - my) * zoomFactor;
+
+  runSingle();
+}, { passive: false });
+
+// ================= Wiring UI =================
+
 run.onclick = runSingle;
 reset.onclick = () => {
   D.value = 3;
@@ -399,6 +600,8 @@ reset.onclick = () => {
   S.value = 9;
   alpha.value = 0;
   Dover.value = 0.5;
+  // リセット時は view を自動初期化する
+  view.initialized = false;
   runSingle();
 };
 
@@ -406,6 +609,10 @@ btnRunAlpha5.onclick = runAlpha5;
 btnRunTheta5.onclick = runTheta5;
 btnRunDover5.onclick = runDover5;
 
+window.addEventListener("resize", () => {
+  // リサイズ時はキャンバスサイズを更新して再描画（view は維持）
+  runSingle();
+});
 
-window.addEventListener("resize", runSingle);
+// 初回実行
 runSingle();
