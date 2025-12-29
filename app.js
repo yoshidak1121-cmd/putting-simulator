@@ -8,32 +8,26 @@ const deg2rad = d => d * Math.PI / 180;
 // v0 を外から渡すバージョン（純粋な物理シミュレーション）
 function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
 
-  // v0 が小さすぎたり NaN の場合は補正
-  if (!isFinite(v0) || v0 < 0.01) v0 = 0.01;
+  if (!isFinite(v0) || v0 < 0.03) v0 = 0.03; // 最低初速を保証
 
   const dt = 0.01;
   const g = 9.80665;
   const cupR = CUP / 2;
 
-  // rolling resistance (approx)
   const v0_stimp = 1.83;
   const s = Math.max(0.1, stimpFt * 0.3048);
   const aRoll = (v0_stimp ** 2) / (2 * s);
 
-  // initial position (9 o'clock)
   let x = -D;
   let y = 0;
 
-  // direction (+X rotated by alpha)
   const a = deg2rad(alphaDeg);
   let vx = v0 * Math.cos(a);
   let vy = v0 * Math.sin(a);
 
-  // slope: θ>0 → -Y is down
   const theta = deg2rad(thetaDeg);
   const aSlopeY = -g * Math.tan(theta);
 
-  // ---- 速度依存摩擦係数 ----
   const k = aRoll / v0;
 
   const path = [{ x, y }];
@@ -41,7 +35,7 @@ function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
 
   for (let t = 0; t < 12; t += dt) {
     const v = Math.hypot(vx, vy);
-    if (v < 0.03) break;
+    if (v < 0.01) break;
 
     const ax = -k * vx;
     const ay = -k * vy + aSlopeY;
@@ -61,7 +55,6 @@ function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
     }
   }
 
-  // 最低2点は描画できるように保証
   if (path.length < 2) path.push({ x, y });
 
   return { path, stop: { x, y }, holed };
@@ -71,7 +64,7 @@ function simulateWithV0(D, thetaDeg, stimpFt, alphaDeg, v0) {
 // Dover（合成距離）に一致する v0 を反復計算で求める
 function findV0ForDover(D, theta, S, alpha, Dover) {
 
-  let v0 = 1.0; // 初期推定
+  let v0 = 1.2; // 初期推定を少し大きめに
 
   for (let iter = 0; iter < 12; iter++) {
 
@@ -82,11 +75,9 @@ function findV0ForDover(D, theta, S, alpha, Dover) {
 
     if (Math.abs(error) < 0.01) break;
 
-    // 安定収束する更新式
     v0 = v0 - error * 0.2;
 
-    // v0 が負やゼロにならないようにする
-    if (!isFinite(v0) || v0 < 0.01) v0 = 0.01;
+    if (!isFinite(v0) || v0 < 0.03) v0 = 0.03;
   }
 
   return v0;
@@ -95,9 +86,7 @@ function findV0ForDover(D, theta, S, alpha, Dover) {
 
 // Dover（合成距離）対応版 simulate()
 function simulate(D, theta, S, alpha, Dover) {
-
   const v0 = findV0ForDover(D, theta, S, alpha, Dover);
-
   return simulateWithV0(D, theta, S, alpha, v0);
 }
 
@@ -154,7 +143,6 @@ function drawMany(sims, D, Dover, title) {
   const tx = x => (x - xMin) * sx;
   const ty = yCup => h - (yCup - yLo) * sy;
 
-  // ---- Grid ----
   ctx.strokeStyle = "rgba(255,255,255,0.15)";
   ctx.lineWidth = 1;
 
@@ -175,13 +163,11 @@ function drawMany(sims, D, Dover, title) {
     ctx.stroke();
   }
 
-  // ---- Cup ----
   ctx.fillStyle = "#e60000";
   ctx.beginPath();
   ctx.arc(tx(0), ty(0), 7, 0, Math.PI * 2);
   ctx.fill();
 
-  // ---- Paths ----
   sims.forEach((sim, i) => {
     if (!sim.path || sim.path.length < 2) return;
 
@@ -200,14 +186,12 @@ function drawMany(sims, D, Dover, title) {
     ctx.globalAlpha = 1;
   });
 
-  // ---- Start ball ----
   const b0 = sims[0].path[0];
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.arc(tx(b0.x), ty(b0.y / CUP), 6, 0, Math.PI * 2);
   ctx.fill();
 
-  // ---- Stops ----
   sims.forEach(sim => {
     ctx.fillStyle = sim.holed ? "#00ff66" : "#ffd400";
     ctx.beginPath();
@@ -244,27 +228,31 @@ function makeValues(center, step) {
 
 function runSingle() {
   const i = getI();
-  const sim = simulate(i.D, i.theta, i.S, i.alpha, i.Dover);
+  const v0 = findV0ForDover(i.D, i.theta, i.S, i.alpha, i.Dover);
+  const sim = simulateWithV0(i.D, i.theta, i.S, i.alpha, v0);
+
   drawMany([sim], i.D, i.Dover, "単発");
 
-  // ---- 停止位置（打ち出し基準）の表示 ----
   const stopX = sim.stop.x;
   const stopY = sim.stop.y;
   const stopDist = Math.hypot(stopX + i.D, stopY);
 
-  // ---- 最大幅（左右） ----
   const maxY = Math.max(...sim.path.map(p => Math.abs(p.y)));
   const maxWidth = maxY / CUP;
 
-  // ---- 基本情報 ----
   let text =
+    `距離 D: ${i.D} m\n` +
+    `傾斜 θ: ${i.theta}°\n` +
+    `スティンプ S: ${i.S} ft\n` +
+    `打ち出し角 α: ${i.alpha}°\n` +
+    `オーバー距離 Dover: ${i.Dover} m\n` +
+    `計算された初速 v0: ${v0.toFixed(3)} m/s\n\n` +
     `停止位置 X: ${stopX.toFixed(3)} m\n` +
     `停止位置 Y: ${stopY.toFixed(3)} m\n` +
     `停止距離（打ち出し基準）: ${stopDist.toFixed(3)} m\n` +
-    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP\n`;
+    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP\n\n` +
+    `--- 軌跡データ ---\n`;
 
-  // ---- 軌跡データ ----
-  text += "\n--- 軌跡データ ---\n";
   sim.path.forEach((p, idx) => {
     text += `#${idx}: x=${p.x.toFixed(3)} m, y=${p.y.toFixed(3)} m\n`;
   });
