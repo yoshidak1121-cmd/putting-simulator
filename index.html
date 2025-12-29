@@ -1,69 +1,66 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Putting Simulation</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Putting Simulator</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="title">Putting Simulation</div>
-    <div class="actions">
-      <button id="run">実行</button>
-      <button id="reset">リセット</button>
-    </div>
-  </header>
 
-  <main class="main">
-    <section class="panel">
-      <label>距離 D [m]
-        <input id="D" type="number" step="0.1" value="3.0">
-      </label>
+<header class="topbar">
+  <div class="title">Putting Simulator</div>
+  <div class="actions">
+    <button id="run">単発</button>
+    <button id="reset">リセット</button>
+  </div>
+</header>
 
-      <label>傾き角 θ [deg]（+で右が低い）
-        <input id="theta" type="number" step="0.1" value="2.0">
-      </label>
+<main class="main">
+  <section class="panel">
 
-      <label>スティンプ S [ft]
-        <input id="S" type="number" step="0.1" value="9.0">
-      </label>
+    <label>距離 D [m]
+      <input id="D" type="number" step="0.1" value="3.0">
+    </label>
 
-      <label>打ち出し角 α [deg]
-        <input id="alpha" type="number" step="0.1" value="0.0">
-      </label>
+    <label>傾斜角 θ [deg]（+で -Y が低い）
+      <input id="theta" type="number" step="0.1" value="2.0">
+    </label>
 
-      <label>オーバ距離 Dover [m]（傾斜0でカップを過ぎる距離）
-        <input id="Dover" type="number" step="0.1" value="0.5">
-      </label>
+    <label>スティンプ S [ft]
+      <input id="S" type="number" step="0.1" value="9.0">
+    </label>
 
-      <label>±表示
-        <div class="pmRow">
-          <label class="pmItem">
-            <input type="checkbox" id="showMinus" checked>
-            マイナス側（-）
-          </label>
-          <label class="pmItem">
-            <input type="checkbox" id="showPlus" checked>
-            プラス側（+）
-          </label>
-        </div>
-      </label>
+    <label>打ち出し角 α [deg]
+      <input id="alpha" type="number" step="0.1" value="0.0">
+    </label>
 
-      <div class="sweepRow">
-        <button id="runAlpha5">α 5本</button>
-        <button id="runTheta5">θ 5本</button>
-        <button id="runDover5">Dover 5本</button>
+    <label>オーバー距離 Dover [m]
+      <input id="Dover" type="number" step="0.1" value="0.5">
+    </label>
+
+    <label>±表示
+      <div class="pmRow">
+        <label><input type="checkbox" id="showMinus" checked> −側</label>
+        <label><input type="checkbox" id="showPlus" checked> ＋側</label>
       </div>
+    </label>
 
-      <pre id="result"></pre>
-    </section>
+    <div class="sweepRow">
+      <button id="runAlpha5">α 5本</button>
+      <button id="runTheta5">θ 5本</button>
+      <button id="runDover5">Dover 5本</button>
+    </div>
 
-    <section class="view">
-      <canvas id="cv"></canvas>
-    </section>
-  </main>
+    <pre id="result"></pre>
 
-  <script src="app.js"></script>
+  </section>
+
+  <section class="view">
+    <canvas id="cv"></canvas>
+  </section>
+</main>
+
+<script src="app.js"></script>
 </body>
 </html>
