@@ -468,7 +468,7 @@ function runSingle() {
   // ボール原点座標系に変換して表示
   const stopX_display = sim.stop.x + i.D;
   const stopY_display = sim.stop.y;
-  const stopDist = Math.hypot(stopX_display - i.D, stopY_display);
+  const stopDist = Math.hypot(sim.stop.x, sim.stop.y);
 
   const maxY = Math.max(...sim.path.map(p => Math.abs(p.y)));
   const maxWidth = maxY / CUP;
