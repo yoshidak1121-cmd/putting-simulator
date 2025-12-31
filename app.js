@@ -308,13 +308,23 @@ function drawMany(sims, D, Dover, title, alphaCenter35 = null) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // --- カップ補助円（1カップ半径ごと） ---
+  // --- カップ補助円（1カップ半径ごと、ビュースケールに応じて調整） ---
   ctx.strokeStyle = "rgba(0,0,0,0.3)";
   ctx.lineWidth = 1;
-  for (let i = 1; i <= 5; i++) {
-    const rHelper = (A * i) * Math.max(sx, sy);
+  const scale = Math.max(sx, sy);
+  const cx = tx(0);
+  const cy = ty(D);
+  const maxVisibleRadius = Math.min(
+    Math.abs(cx),
+    Math.abs(cy),
+    Math.abs(w - cx),
+    Math.abs(h - cy)
+  );
+  const maxHelperCount = Math.max(1, Math.min(5, Math.floor(maxVisibleRadius / (A * scale))));
+  for (let i = 1; i <= maxHelperCount; i++) {
+    const rHelper = (A * i) * scale;
     ctx.beginPath();
-    ctx.arc(tx(0), ty(D), rHelper, 0, Math.PI * 2);
+    ctx.arc(cx, cy, rHelper, 0, Math.PI * 2);
     ctx.stroke();
   }
 
@@ -429,39 +439,101 @@ function computeAlphaCenter35(D, thetaDeg, stimpFt) {
   const tolerance = 0.001;  // 1mm
   const maxIter = 50;
 
-  // 二分法で解く
-  let alphaLow = -45;
-  let alphaHigh = 45;
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    const alphaMid = (alphaLow + alphaHigh) / 2;
-    const sim = simulate2D(D, thetaDeg, stimpFt, alphaMid, Dover35);
+  // 与えられた alpha に対して y = D を跨ぐ点の x 座標を計算
+  function getXAtD(alphaDeg) {
+    const sim = simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover35);
 
     // y=D を跨ぐ点を見つけて線形補間
-    let xAtD = null;
     for (let i = 1; i < sim.path.length; i++) {
       const p0 = sim.path[i - 1];
       const p1 = sim.path[i];
       if ((p0.y <= targetY && p1.y >= targetY) || (p0.y >= targetY && p1.y <= targetY)) {
-        const t = (targetY - p0.y) / (p1.y - p0.y);
-        xAtD = p0.x + t * (p1.x - p0.x);
-        break;
+        const dy = p1.y - p0.y;
+        if (Math.abs(dy) < 1e-9) {
+          // 連続する点のy座標が実質同じ場合、ゼロ除算を回避
+          if (Math.abs(p0.y - targetY) < 1e-9 && Math.abs(p1.y - targetY) < 1e-9) {
+            return (p0.x + p1.x) / 2;
+          }
+          // 水平な線分で補間に使えない場合はスキップ
+          continue;
+        }
+        const t = (targetY - p0.y) / dy;
+        return p0.x + t * (p1.x - p0.x);
       }
     }
 
-    if (xAtD === null) {
-      // 到達しない場合
-      return null;
+    // y=D に到達しない場合
+    return null;
+  }
+
+  // 二分法で解く
+  let alphaLow = -45;
+  let alphaHigh = 45;
+
+  let fLow = getXAtD(alphaLow);
+  let fHigh = getXAtD(alphaHigh);
+
+  // 端点で到達しない、または符号変化が無い場合は二分法を適用できない
+  if (fLow === null || fHigh === null) {
+    return null;
+  }
+
+  if (Math.abs(fLow) < tolerance) {
+    return alphaLow;
+  }
+  if (Math.abs(fHigh) < tolerance) {
+    return alphaHigh;
+  }
+
+  // 符号が同じ場合はカップ中心を挟んでいない可能性がある
+  if (fLow * fHigh > 0) {
+    return null;
+  }
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const alphaMid = (alphaLow + alphaHigh) / 2;
+    const fMid = getXAtD(alphaMid);
+
+    if (fMid === null) {
+      // y=D に到達しない場合は、最終位置の y と targetY を比較して探索範囲を調整する
+      const sim = simulate2D(D, thetaDeg, stimpFt, alphaMid, Dover35);
+      if (!sim.path || sim.path.length === 0) {
+        return null;
+      }
+      const lastPoint = sim.path[sim.path.length - 1];
+      const lastY = lastPoint.y;
+
+      if (lastY < targetY) {
+        // D に到達する前に止まった（ショート）場合
+        // より直線的なライン（alpha を 0 に近づける）を試す
+        if (alphaMid > 0) {
+          alphaHigh = alphaMid;
+        } else {
+          alphaLow = alphaMid;
+        }
+      } else {
+        // D を越えている（オーバーシュート）場合
+        // より大きく曲げたライン（alpha を 0 から遠ざける）を試す
+        if (alphaMid > 0) {
+          alphaLow = alphaMid;
+        } else {
+          alphaHigh = alphaMid;
+        }
+      }
+      continue;
     }
 
-    if (Math.abs(xAtD) < tolerance) {
+    if (Math.abs(fMid) < tolerance) {
       return alphaMid;
     }
 
-    if (xAtD < 0) {
+    // 符号に応じて区間を更新（fLow と fHigh の符号は常に反対）
+    if (fMid * fLow > 0) {
       alphaLow = alphaMid;
+      fLow = fMid;
     } else {
       alphaHigh = alphaMid;
+      fHigh = fMid;
     }
   }
 
@@ -500,8 +572,8 @@ function runSingle() {
   const cupCenterY = i.D;
   const distFromCup = Math.hypot(stopX - cupCenterX, stopY - cupCenterY);
 
-  const maxX = Math.max(...sim.path.map(p => Math.abs(p.x)));
-  const maxWidth = maxX / CUP;
+  const maxAbsX = Math.max(...sim.path.map(p => Math.abs(p.x)));
+  const maxWidth = maxAbsX / CUP;
 
   let text =
     `【原点：ボール位置 (0,0)、カップ中心：(0,${i.D})】\n\n` +
@@ -518,7 +590,7 @@ function runSingle() {
     `停止位置 Y: ${stopY.toFixed(3)} m\n` +
     `停止距離（原点基準）: ${stopDist.toFixed(3)} m\n` +
     `カップ中心からの距離: ${distFromCup.toFixed(3)} m\n` +
-    `最大幅（左右）: ±${maxWidth.toFixed(2)} カップ\n\n` +
+    `最大幅（左右）: ±${maxWidth.toFixed(2)} CUP\n\n` +
     `参考：縁から35cmオーバー時 Dover = 0.35 m\n`;
 
   if (alphaCenter35 !== null) {
@@ -531,7 +603,7 @@ function runSingle() {
 }
 
 // α 5本比較（打ち出し角を5条件比較）
-// ステップ：±1deg刻み
+// ステップ：1deg刻み、範囲±2deg
 function runAlpha5() {
   const i = getI();
 
@@ -602,7 +674,7 @@ function runTheta5() {
 }
 
 // Dover 5本比較（タッチを5条件比較）
-// ステップ：±0.1m刻み
+// ステップ：0.1m刻み、範囲±0.2m
 function runDover5() {
   const i = getI();
 
@@ -626,7 +698,7 @@ function runDover5() {
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, baseDover + 0.2, `タッチを5条件比較 (中心 ${baseDover} m)`);
+  drawMany(sims, i.D, i.Dover, `タッチを5条件比較 (中心 ${baseDover} m)`);
 
   let best = null;
   sims.forEach((sim, idx) => {
