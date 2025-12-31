@@ -533,7 +533,7 @@ function computeAlphaCenter35(D, thetaDeg, stimpFt) {
       fLow = fMid;
     } else {
       alphaHigh = alphaMid;
-      fHigh = fMid;
+      // fHigh の更新は以降使用されないため不要
     }
   }
 
