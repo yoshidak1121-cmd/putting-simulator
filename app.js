@@ -567,6 +567,7 @@ function runSingle() {
 
   const stopX = sim.stop.x;
   const stopY = sim.stop.y;
+  // 原点 (ボール初期位置) から停止位置までの直線距離（※移動軌跡の総距離ではない）
   const stopDist = Math.hypot(stopX, stopY);
   const cupCenterX = 0;
   const cupCenterY = i.D;
