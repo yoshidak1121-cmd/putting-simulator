@@ -942,8 +942,9 @@ submitFeedback.onclick = () => {
     timestamp: new Date().toISOString()
   };
   
-  // コンソールにログ出力（実際のアプリケーションではサーバーに送信）
-  console.log("フィードバック送信:", feedbackData);
+  // 実際のアプリケーションではサーバーに送信
+  // Note: 本番環境では個人情報をコンソールにログ出力しないこと
+  console.log("フィードバック送信: 評価=" + feedbackData.rating + "点");
   
   // ローカルストレージに保存（デモ用）
   saveFeedbackToLocalStorage(feedbackData);
