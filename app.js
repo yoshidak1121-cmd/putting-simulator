@@ -706,7 +706,7 @@ function runDover5() {
     const cupCenterY = i.D;
     const distCup = Math.hypot(sim.stop.x - cupCenterX, sim.stop.y - cupCenterY);
     if (!best || distCup < best.dist) {
-      best = { sim, idx, dist: distCup, Dover: baseDover + deltas[idx] };
+      best = { sim, idx, dist: distCup, Dover: Math.max(0, baseDover + deltas[idx]) };
     }
   });
 
