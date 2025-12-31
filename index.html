@@ -91,6 +91,55 @@
 
 </div>
 
+<!-- フィードバックボタン -->
+<button id="feedbackBtn" class="feedback-button" title="フィードバックを送信">
+  <span class="feedback-icon">💬</span>
+</button>
+
+<!-- フィードバックモーダル -->
+<div id="feedbackModal" class="feedback-modal">
+  <div class="feedback-content">
+    <div class="feedback-header">
+      <h3>フィードバック</h3>
+      <button id="closeFeedback" class="close-btn">&times;</button>
+    </div>
+    <div class="feedback-body">
+      <p>このシミュレーターについてのご意見をお聞かせください。</p>
+      
+      <div class="feedback-rating">
+        <label>評価:</label>
+        <div class="star-rating">
+          <span class="star" data-rating="1">☆</span>
+          <span class="star" data-rating="2">☆</span>
+          <span class="star" data-rating="3">☆</span>
+          <span class="star" data-rating="4">☆</span>
+          <span class="star" data-rating="5">☆</span>
+        </div>
+      </div>
+      
+      <div class="feedback-form">
+        <label for="feedbackName">お名前 (任意):</label>
+        <input type="text" id="feedbackName" placeholder="お名前">
+        
+        <label for="feedbackEmail">メールアドレス (任意):</label>
+        <input type="email" id="feedbackEmail" placeholder="example@email.com">
+        
+        <label for="feedbackMessage">コメント:</label>
+        <textarea id="feedbackMessage" rows="5" placeholder="ご意見・ご感想をお聞かせください"></textarea>
+        
+        <div class="feedback-actions">
+          <button id="submitFeedback" class="submit-btn">送信</button>
+          <button id="cancelFeedback" class="cancel-btn">キャンセル</button>
+        </div>
+      </div>
+      
+      <div id="feedbackSuccess" class="feedback-success" style="display: none;">
+        <p>✓ フィードバックをありがとうございました！</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>
