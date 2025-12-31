@@ -785,6 +785,9 @@ const stars = document.querySelectorAll(".star");
 
 let selectedRating = 0;
 
+// Constants
+const SUCCESS_MESSAGE_TIMEOUT = 2000; // 2 seconds
+
 // フィードバックボタンクリック
 feedbackBtn.onclick = () => {
   feedbackModal.style.display = "block";
@@ -804,12 +807,12 @@ cancelFeedback.onclick = () => {
 };
 
 // モーダル外クリックで閉じる
-window.onclick = (e) => {
+window.addEventListener("click", (e) => {
   if (e.target === feedbackModal) {
     feedbackModal.style.display = "none";
     resetFeedbackForm();
   }
-};
+});
 
 // 星評価
 stars.forEach(star => {
@@ -885,16 +888,17 @@ submitFeedback.onclick = () => {
   feedbackForm.style.display = "none";
   feedbackSuccess.style.display = "block";
   
-  // 2秒後にモーダルを閉じる
+  // 指定秒数後にモーダルを閉じる
   setTimeout(() => {
     feedbackModal.style.display = "none";
     resetFeedbackForm();
-  }, 2000);
+  }, SUCCESS_MESSAGE_TIMEOUT);
 };
 
 // メールアドレスバリデーション
 function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // HTML5 standard email validation pattern
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
   return emailRegex.test(email);
 }
 
