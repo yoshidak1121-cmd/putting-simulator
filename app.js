@@ -771,3 +771,152 @@ window.addEventListener("resize", () => {
 
 // 初回実行
 runSingle();
+
+// ================= フィードバック機能 =================
+
+const feedbackBtn = document.getElementById("feedbackBtn");
+const feedbackModal = document.getElementById("feedbackModal");
+const closeFeedback = document.getElementById("closeFeedback");
+const cancelFeedback = document.getElementById("cancelFeedback");
+const submitFeedback = document.getElementById("submitFeedback");
+const feedbackSuccess = document.getElementById("feedbackSuccess");
+const feedbackForm = document.querySelector(".feedback-form");
+const stars = document.querySelectorAll(".star");
+
+let selectedRating = 0;
+
+// フィードバックボタンクリック
+feedbackBtn.onclick = () => {
+  feedbackModal.style.display = "block";
+  feedbackSuccess.style.display = "none";
+  feedbackForm.style.display = "block";
+};
+
+// モーダルを閉じる
+closeFeedback.onclick = () => {
+  feedbackModal.style.display = "none";
+  resetFeedbackForm();
+};
+
+cancelFeedback.onclick = () => {
+  feedbackModal.style.display = "none";
+  resetFeedbackForm();
+};
+
+// モーダル外クリックで閉じる
+window.onclick = (e) => {
+  if (e.target === feedbackModal) {
+    feedbackModal.style.display = "none";
+    resetFeedbackForm();
+  }
+};
+
+// 星評価
+stars.forEach(star => {
+  star.onclick = () => {
+    selectedRating = parseInt(star.dataset.rating);
+    updateStars();
+  };
+  
+  star.onmouseenter = () => {
+    const rating = parseInt(star.dataset.rating);
+    stars.forEach((s, idx) => {
+      if (idx < rating) {
+        s.textContent = "★";
+        s.style.color = "#ffd700";
+      } else {
+        s.textContent = "☆";
+        s.style.color = "#555";
+      }
+    });
+  };
+});
+
+document.querySelector(".star-rating").onmouseleave = () => {
+  updateStars();
+};
+
+function updateStars() {
+  stars.forEach((star, idx) => {
+    if (idx < selectedRating) {
+      star.textContent = "★";
+      star.classList.add("active");
+    } else {
+      star.textContent = "☆";
+      star.classList.remove("active");
+    }
+  });
+}
+
+// フィードバック送信
+submitFeedback.onclick = () => {
+  const name = document.getElementById("feedbackName").value.trim();
+  const email = document.getElementById("feedbackEmail").value.trim();
+  const message = document.getElementById("feedbackMessage").value.trim();
+  
+  // 基本バリデーション
+  if (message === "") {
+    alert("コメントを入力してください。");
+    return;
+  }
+  
+  // メールアドレスの簡易バリデーション
+  if (email !== "" && !isValidEmail(email)) {
+    alert("有効なメールアドレスを入力してください。");
+    return;
+  }
+  
+  // フィードバックデータ
+  const feedbackData = {
+    rating: selectedRating,
+    name: name || "匿名",
+    email: email,
+    message: message,
+    timestamp: new Date().toISOString()
+  };
+  
+  // コンソールにログ出力（実際のアプリケーションではサーバーに送信）
+  console.log("フィードバック送信:", feedbackData);
+  
+  // ローカルストレージに保存（デモ用）
+  saveFeedbackToLocalStorage(feedbackData);
+  
+  // 成功メッセージ表示
+  feedbackForm.style.display = "none";
+  feedbackSuccess.style.display = "block";
+  
+  // 2秒後にモーダルを閉じる
+  setTimeout(() => {
+    feedbackModal.style.display = "none";
+    resetFeedbackForm();
+  }, 2000);
+};
+
+// メールアドレスバリデーション
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// ローカルストレージに保存
+function saveFeedbackToLocalStorage(feedbackData) {
+  try {
+    let feedbacks = JSON.parse(localStorage.getItem("puttingSimulatorFeedbacks")) || [];
+    feedbacks.push(feedbackData);
+    localStorage.setItem("puttingSimulatorFeedbacks", JSON.stringify(feedbacks));
+  } catch (e) {
+    console.error("フィードバックの保存に失敗しました:", e);
+  }
+}
+
+// フォームリセット
+function resetFeedbackForm() {
+  document.getElementById("feedbackName").value = "";
+  document.getElementById("feedbackEmail").value = "";
+  document.getElementById("feedbackMessage").value = "";
+  selectedRating = 0;
+  updateStars();
+  feedbackSuccess.style.display = "none";
+  feedbackForm.style.display = "block";
+}
+
