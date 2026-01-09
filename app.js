@@ -542,22 +542,22 @@ function runSingle() {
 
   let text =
     `【入力パラメータ】（原点：ボール位置）\n` +
-    `距離 D: ${i.D} m\n` +
-    `傾斜 θ: ${i.theta}° (右+/左-)\n` +
-    `スティンプ S: ${i.S} ft\n` +
-    `打ち出し角 α: ${i.alpha}° (反時計+/時計-)\n` +
-    `オーバー距離 Dover: ${i.Dover} m (縁基準)\n\n` +
+    `距離 D：${i.D} m\n` +
+    `傾斜 θ：${i.theta}°（右+/左-）\n` +
+    `スティンプ S：${i.S} ft\n` +
+    `打ち出し角 α：${i.alpha}°（反時計+/時計-）\n` +
+    `オーバー距離 Dover：${i.Dover} m（縁基準）\n\n` +
     `【計算結果】\n` +
-    `一定減速度 aRoll: ${sim.aRoll.toFixed(3)} m/s²\n` +
-    `初速 v0: ${sim.v0.toFixed(3)} m/s\n` +
-    `停止時間 tStop: ${sim.tStop.toFixed(2)} s\n` +
-    `カップ通過速度 vCup: ${sim.vCup !== null ? sim.vCup.toFixed(3) + " m/s" : "未通過"}\n\n` +
+    `一定減速度 aRoll：${sim.aRoll.toFixed(3)} m/s²\n` +
+    `初速 v0：${sim.v0.toFixed(3)} m/s\n` +
+    `停止時間 tStop：${sim.tStop.toFixed(2)} s\n` +
+    `カップ通過速度 vCup：${sim.vCup !== null ? sim.vCup.toFixed(3) + " m/s" : "未通過"}\n\n` +
     `【停止位置】（ボール原点基準）\n` +
-    `停止位置 X: ${stopX.toFixed(3)} m\n` +
-    `停止位置 Y: ${stopY.toFixed(3)} m\n` +
-    `停止距離（原点から）: ${stopDist.toFixed(3)} m\n` +
-    `カップ中心からの距離: ${distFromCup.toFixed(3)} m\n` +
-    `最大横ズレ: ${maxX.toFixed(3)} m\n\n` +
+    `停止位置 X：${stopX.toFixed(3)} m\n` +
+    `停止位置 Y：${stopY.toFixed(3)} m\n` +
+    `停止距離（原点から）：${stopDist.toFixed(3)} m\n` +
+    `カップ中心からの距離：${distFromCup.toFixed(3)} m\n` +
+    `最大横ズレ：${maxX.toFixed(3)} m\n\n` +
     `【参考】\n` +
     `縁から35cmオーバー時 Dover = 0.35 m\n`;
 
@@ -599,7 +599,7 @@ function runAlpha5() {
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, i.Dover, `打ち出し角を5条件比較 (中心 ${baseAlpha}°)`);
+  drawMany(sims, i.D, i.Dover, `打ち出し角を5条件比較（中心 ${baseAlpha}°）`);
 
   let best = null;
   const cupCenterX = 0;
@@ -614,10 +614,10 @@ function runAlpha5() {
 
   result.textContent =
     `打ち出し角を5条件比較\n` +
-    `中心値: α = ${baseAlpha}°\n` +
-    `範囲: ${baseAlpha-2}° ~ ${baseAlpha+2}° (1°刻み)\n\n` +
-    `最適 α: ${best.alpha}°\n` +
-    `カップ中心からの距離: ${best.dist.toFixed(3)} m`;
+    `中心値：α = ${baseAlpha}°\n` +
+    `範囲：${baseAlpha-2}° ~ ${baseAlpha+2}°（1°刻み）\n\n` +
+    `最適 α：${best.alpha}°\n` +
+    `カップ中心からの距離：${best.dist.toFixed(3)} m`;
 }
 
 // θ 5条件比較（傾斜角を5条件比較）
@@ -649,12 +649,12 @@ function runTheta5() {
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, i.Dover, `傾斜角を5条件比較 (中心 ${baseTheta}°)`);
+  drawMany(sims, i.D, i.Dover, `傾斜角を5条件比較（中心 ${baseTheta}°）`);
 
   result.textContent = 
     `傾斜角を5条件比較\n` +
-    `中心値: θ = ${baseTheta}°\n` +
-    `範囲: ${(baseTheta-1.0).toFixed(1)}° ~ ${(baseTheta+1.0).toFixed(1)}° (0.5°刻み)`;
+    `中心値：θ = ${baseTheta}°\n` +
+    `範囲：${(baseTheta-1.0).toFixed(1)}° ~ ${(baseTheta+1.0).toFixed(1)}°（0.5°刻み）`;
 }
 
 // Dover 5条件比較（タッチを5条件比較）
@@ -686,7 +686,7 @@ function runDover5() {
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, baseDover + 0.5, `タッチを5条件比較 (中心 ${baseDover} m)`);
+  drawMany(sims, i.D, baseDover + 0.5, `タッチを5条件比較（中心 ${baseDover} m）`);
 
   let best = null;
   const cupCenterX = 0;
@@ -701,10 +701,10 @@ function runDover5() {
 
   result.textContent =
     `タッチを5条件比較\n` +
-    `中心値: Dover = ${baseDover} m\n` +
-    `範囲: ${Math.max(0, baseDover-0.20).toFixed(2)} ~ ${(baseDover+0.20).toFixed(2)} m (0.10m刻み)\n\n` +
-    `最適 Dover: ${best.Dover.toFixed(2)} m\n` +
-    `カップ中心からの距離: ${best.dist.toFixed(3)} m`;
+    `中心値：Dover = ${baseDover} m\n` +
+    `範囲：${Math.max(0, baseDover-0.20).toFixed(2)} ~ ${(baseDover+0.20).toFixed(2)} m（0.10m刻み）\n\n` +
+    `最適 Dover：${best.Dover.toFixed(2)} m\n` +
+    `カップ中心からの距離：${best.dist.toFixed(3)} m`;
 }
 
 // ================= Mouse / Interaction =================
