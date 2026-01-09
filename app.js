@@ -18,7 +18,7 @@ const btnRunDover5 = document.getElementById("runDover5");
 
 const result    = document.getElementById("result");
 
-// ================= Viewport (パン・ズーム・軸ドラッグ用) =================
+// ================= Viewport（パン・ズーム・軸ドラッグ用）=================
 let view = {
   xMin: -1,
   xMax: 5,
@@ -28,16 +28,16 @@ let view = {
 };
 
 let isDragging = false;
-let dragMode = null;   // "pan", "xMin", "xMax", "yMin", "yMax"
+let dragMode = null;   // "pan"、"xMin"、"xMax"、"yMin"、"yMax"
 let lastMouse = { x: 0, y: 0 };
 
 // ================= 35cm Over Guide Line Calculation =================
 
-// Dover35: 固定参考条件（縁から35cmオーバー）
+// Dover35：固定参考条件（縁から35cmオーバー）
 const Dover35 = 0.35;
 
 // α_center35を数値的に求める（二分法）
-// 目的: Dover35の強さで打ったとき、カップ中心 (0,D) を通る打ち出し角を求める
+// 目的：Dover35の強さで打ったとき、カップ中心 (0,D) を通る打ち出し角を求める
 function computeAlphaCenter35(D, thetaDeg, stimpFt) {
   const cupCenterX = 0;
   const cupCenterY = D;
@@ -139,7 +139,7 @@ function computeInitialV0(D, Dover, aRoll, thetaDeg) {
   return Math.sqrt(2 * aEff * L);
 }
 
-// ================= Cup crossing (線分と円の交差判定) =================
+// ================= Cup crossing（線分と円の交差判定）=================
 
 function segmentHitsCircle(x0, y0, x1, y1, r) {
   const dx = x1 - x0, dy = y1 - y0;
@@ -160,7 +160,7 @@ function segmentHitsCircle(x0, y0, x1, y1, r) {
 }
 
 // ================= Simulation =================
-// 座標系: 原点(0,0)はボール位置、+Y方向がカップ方向
+// 座標系：原点(0,0)はボール位置、+Y方向がカップ方向
 
 function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
 
@@ -170,7 +170,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   const dt = 0.01;
   const g = 9.80665;
 
-  // 原点をボール位置に変更 (ボール原点基準)
+  // 原点をボール位置に変更（ボール原点基準）
   // カップは (0, D) の位置
   // α=0 のとき、Y方向（カップ方向）に打ち出す
   // αは Y軸からの反時計回りの角度
@@ -184,7 +184,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
   let vy = v0 * Math.cos(a);   // Y成分（カップ方向）
 
   const theta = deg2rad(thetaDeg);
-  // 傾斜による加速度（X方向）: 右傾斜（+θ）で右（+X）に加速
+  // 傾斜による加速度（X方向）：右傾斜（+θ）で右（+X）に加速
   const aSlopeX = g * Math.sin(theta);
 
   const path = [{ x, y }];
@@ -216,7 +216,7 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
     x += vx * dt;
     y += vy * dt;
 
-    // ★ 線分と円の交差判定 (カップ中心は (0, D))
+    // ★ 線分と円の交差判定（カップ中心は (0, D)）
     if (cupIndex === null) {
       const cupCenterX = 0;
       const cupCenterY = D;
@@ -251,7 +251,7 @@ function setupCanvas() {
   cv.height = Math.max(200, Math.floor(r.height));
 }
 
-// 逆変換（ピクセル -> 物理座標）
+// 逆変換（ピクセル→物理座標）
 function tx_inv(px, w) {
   return view.xMin + px * (view.xMax - view.xMin) / w;
 }
@@ -259,7 +259,7 @@ function ty_inv(py, h) {
   return view.yMin + (h - py) * (view.yMax - view.yMin) / h;
 }
 
-// 軸端ヒットテスト（px,py はキャンバス座標）
+// 軸端ヒットテスト（px、py はキャンバス座標）
 function hitTestAxis(px, py, w, h) {
   // 一時的な tx/ty を作る
   const tx_local = x => (x - view.xMin) * (w / (view.xMax - view.xMin));
@@ -300,7 +300,7 @@ function autoInitViewFromInputs() {
   view.initialized = true;
 }
 
-// drawMany: ボール原点基準の描画
+// drawMany：ボール原点基準の描画
 function drawMany(sims, D, Dover, title, alphaCenter35 = null) {
 
   setupCanvas();
@@ -321,7 +321,7 @@ function drawMany(sims, D, Dover, title, alphaCenter35 = null) {
   const yMin = view.yMin;
   const yMax = view.yMax;
 
-  // 防御: view が逆転していたら修正
+  // 防御：viewが逆転していたら修正
   if (xMax <= xMin + 1e-6) {
     view.xMax = view.xMin + 1;
   }
@@ -335,7 +335,7 @@ function drawMany(sims, D, Dover, title, alphaCenter35 = null) {
   const tx = x => (x - view.xMin) * sx;
   const ty = y => h - (y - view.yMin) * sy;
 
-  // 背景: グリーンに近い薄緑色
+  // 背景：グリーンに近い薄緑色
   ctx.fillStyle = "#b8d4a8";
   ctx.fillRect(0, 0, w, h);
 
@@ -570,7 +570,7 @@ function runSingle() {
   result.textContent = text;
 }
 
-// α 5条件比較 (打ち出し角を5条件比較)
+// α 5条件比較（打ち出し角を5条件比較）
 // 中心±2degずつ、計5条件
 function runAlpha5() {
   const i = getI();
@@ -590,7 +590,7 @@ function runAlpha5() {
 
   const sims = [];
   const baseAlpha = i.alpha;
-  const deltas = [-2, -1, 0, 1, 2];  // α: ±2deg刻み
+  const deltas = [-2, -1, 0, 1, 2];  // α：±2deg刻み
 
   deltas.forEach(d => {
     const a = baseAlpha + d;
@@ -620,8 +620,8 @@ function runAlpha5() {
     `カップ中心からの距離: ${best.dist.toFixed(3)} m`;
 }
 
-// θ 5条件比較 (傾斜角を5条件比較)
-// 中心±{1.0, 0.5}deg、計5条件
+// θ 5条件比較（傾斜角を5条件比較）
+// 中心±{1.0、0.5}deg、計5条件
 function runTheta5() {
   const i = getI();
 
@@ -640,7 +640,7 @@ function runTheta5() {
 
   const sims = [];
   const baseTheta = i.theta;
-  const deltas = [-1.0, -0.5, 0, 0.5, 1.0];  // θ: ±0.5deg刻み
+  const deltas = [-1.0, -0.5, 0, 0.5, 1.0];  // θ：±0.5deg刻み
 
   deltas.forEach(d => {
     const th = baseTheta + d;
@@ -657,8 +657,8 @@ function runTheta5() {
     `範囲: ${(baseTheta-1.0).toFixed(1)}° ~ ${(baseTheta+1.0).toFixed(1)}° (0.5°刻み)`;
 }
 
-// Dover 5条件比較 (タッチを5条件比較)
-// 中心±{0.20, 0.10}m、計5条件
+// Dover 5条件比較（タッチを5条件比較）
+// 中心±{0.20、0.10}m、計5条件
 function runDover5() {
   const i = getI();
 
@@ -677,7 +677,7 @@ function runDover5() {
 
   const sims = [];
   const baseDover = i.Dover;
-  const deltas = [-0.20, -0.10, 0, 0.10, 0.20];  // Dover: ±0.10m刻み
+  const deltas = [-0.20, -0.10, 0, 0.10, 0.20];  // Dover：±0.10m刻み
 
   deltas.forEach(d => {
     const DoverVal = Math.max(0, baseDover + d);
@@ -727,7 +727,7 @@ cv.addEventListener("mousedown", e => {
   lastMouse.x = px;
   lastMouse.y = py;
 
-  // 視覚的ヒント: カーソル変更
+  // 視覚的ヒント：カーソル変更
   if (dragMode === "pan") cv.style.cursor = "grabbing";
   else cv.style.cursor = "ew-resize";
 });
@@ -738,7 +738,7 @@ cv.addEventListener("mousemove", e => {
   const px = e.clientX - rect.left;
   const py = e.clientY - rect.top;
 
-  // ホバー時のカーソル変更（軸端に近ければハンドル）
+  // ホバー時のカーソル変更（軸端に近い場合はハンドル）
   if (!isDragging) {
     const hit = hitTestAxis(px, py, cv.width, cv.height);
     if (hit === "xMin" || hit === "xMax") cv.style.cursor = "ew-resize";
@@ -790,7 +790,7 @@ const endDrag = () => {
 cv.addEventListener("mouseup", endDrag);
 cv.addEventListener("mouseleave", endDrag);
 
-// wheel (ズーム)
+// wheel（ズーム）
 cv.addEventListener("wheel", e => {
   e.preventDefault();
 
@@ -832,7 +832,7 @@ btnRunTheta5.onclick = runTheta5;
 btnRunDover5.onclick = runDover5;
 
 window.addEventListener("resize", () => {
-  // リサイズ時はキャンバスサイズを更新して再描画（view は維持）
+  // リサイズ時はキャンバスサイズを更新して再描画（viewは維持）
   runSingle();
 });
 
@@ -946,7 +946,7 @@ submitFeedback.onclick = () => {
   };
   
   // 実際のアプリケーションではサーバーに送信
-  // Note: 本番環境では個人情報をコンソールにログ出力しないこと
+  // Note：本番環境では個人情報をコンソールにログ出力しないこと
   console.log("フィードバック送信: 評価=" + feedbackData.rating + "点");
   
   // ローカルストレージに保存（デモ用）
