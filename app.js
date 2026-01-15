@@ -131,29 +131,27 @@ function computeARoll(stimpFt) {
 // Dover はカップの縁（バックエッジ）からの距離として定義
 // useScalar: true の場合、スカラー距離で計算（現在の方式）
 // useScalar: false の場合、打ち出し角を考慮したベクトル計算
+// Note: 初速は常に零度傾斜（θ = 0°）を基準として計算される
 function computeInitialV0(D, Dover, aRoll, thetaDeg, alphaDeg, useScalar) {
   const cupRadius = CUP / 2;
   const L = D + cupRadius + Dover;  // 停止目標位置（Y方向）
-  const g = 9.80665;
-  const theta = deg2rad(thetaDeg);
 
-  const a_g = -g * Math.sin(theta);
-  const aEff = aRoll + a_g;
-
-  if (aEff <= 0) return 0.1;
+  // 零度傾斜（θ = 0°）を基準として初速を計算
+  // aRoll のみを使用し、傾斜による重力成分は含めない
+  if (aRoll <= 0) return 0.1;
   
   if (useScalar) {
-    // スカラー速度：直線距離で初速を計算（従来の方式）
-    return Math.sqrt(2 * aEff * L);
+    // スカラー速度：直線距離で初速を計算（零度傾斜基準）
+    return Math.sqrt(2 * aRoll * L);
   } else {
-    // ベクトル速度：打ち出し角を考慮して Y方向成分で計算
+    // ベクトル速度：打ち出し角を考慮して Y方向成分で計算（零度傾斜基準）
     const alphaRad = deg2rad(alphaDeg);
     const cosAlpha = Math.cos(alphaRad);
     
     // Y方向に必要な速度成分から全体の初速を逆算
     // v_y = v0 * cos(α) なので v0 = v_y / cos(α)
-    // v_y^2 = 2 * aEff * L から v_y = sqrt(2 * aEff * L)
-    const v_y_needed = Math.sqrt(2 * aEff * L);
+    // v_y^2 = 2 * aRoll * L から v_y = sqrt(2 * aRoll * L)
+    const v_y_needed = Math.sqrt(2 * aRoll * L);
     
     // αが90度に近い場合（横向き）は計算不可能なので防御
     if (Math.abs(cosAlpha) < 0.01) {
