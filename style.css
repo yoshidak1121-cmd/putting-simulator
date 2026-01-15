@@ -63,6 +63,13 @@ h2 {
 
 .checkrow label {
   width: auto;
+  font-size: 14px;
+}
+
+.checkrow input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 /* ボタン行 */

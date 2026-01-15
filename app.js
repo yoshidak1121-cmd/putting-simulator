@@ -2,6 +2,7 @@
 
 const CUP = 0.108;
 const deg2rad = d => d * Math.PI / 180;
+const EXTREME_ANGLE_MULTIPLIER = 10; // 極端な角度時の速度倍率
 
 // ================= DOM references =================
 const D        = document.getElementById("D");
@@ -9,6 +10,7 @@ const theta    = document.getElementById("theta");
 const S        = document.getElementById("S");
 const alpha    = document.getElementById("alpha");
 const Dover    = document.getElementById("Dover");
+const useScalarSpeed = document.getElementById("useScalarSpeed");
 
 const run       = document.getElementById("run");
 const reset     = document.getElementById("reset");
@@ -38,13 +40,14 @@ const Dover35 = 0.35;
 
 // α_center35を数値的に求める（二分法）
 // 目的：Dover35の強さで打ったとき、カップ中心 (0,D) を通る打ち出し角を求める
+// 注：参考ガイド線は常にスカラー計算を使用（ユーザーの設定とは独立した固定参照）
 function computeAlphaCenter35(D, thetaDeg, stimpFt) {
   const cupCenterX = 0;
   const cupCenterY = D;
   
   // まず、Dover35 でカップ中心まで到達可能かチェック
   // α=0で試してみる
-  const testSim = simulate2D(D, thetaDeg, stimpFt, 0, Dover35);
+  const testSim = simulate2D(D, thetaDeg, stimpFt, 0, Dover35, true);
   const maxY = Math.max(...testSim.path.map(p => p.y));
   
   if (maxY < D * 0.8) {
@@ -62,7 +65,7 @@ function computeAlphaCenter35(D, thetaDeg, stimpFt) {
     const alphaMid = (alphaMin + alphaMax) / 2;
     
     // Dover35で軌道をシミュレーション
-    const sim = simulate2D(D, thetaDeg, stimpFt, alphaMid, Dover35);
+    const sim = simulate2D(D, thetaDeg, stimpFt, alphaMid, Dover35, true);
     
     // y=D に到達した時点の x 座標を求める（線形補間）
     let xAtD = null;
@@ -126,9 +129,11 @@ function computeARoll(stimpFt) {
 
 // 初速 v0 を「D + カップ半径 + Dover」から計算
 // Dover はカップの縁（バックエッジ）からの距離として定義
-function computeInitialV0(D, Dover, aRoll, thetaDeg) {
+// useScalar: true の場合、スカラー距離で計算（現在の方式）
+// useScalar: false の場合、打ち出し角を考慮したベクトル計算
+function computeInitialV0(D, Dover, aRoll, thetaDeg, alphaDeg, useScalar) {
   const cupRadius = CUP / 2;
-  const L = D + cupRadius + Dover;  // 停止目標位置
+  const L = D + cupRadius + Dover;  // 停止目標位置（Y方向）
   const g = 9.80665;
   const theta = deg2rad(thetaDeg);
 
@@ -136,7 +141,27 @@ function computeInitialV0(D, Dover, aRoll, thetaDeg) {
   const aEff = aRoll + a_g;
 
   if (aEff <= 0) return 0.1;
-  return Math.sqrt(2 * aEff * L);
+  
+  if (useScalar) {
+    // スカラー速度：直線距離で初速を計算（従来の方式）
+    return Math.sqrt(2 * aEff * L);
+  } else {
+    // ベクトル速度：打ち出し角を考慮して Y方向成分で計算
+    const alphaRad = deg2rad(alphaDeg);
+    const cosAlpha = Math.cos(alphaRad);
+    
+    // Y方向に必要な速度成分から全体の初速を逆算
+    // v_y = v0 * cos(α) なので v0 = v_y / cos(α)
+    // v_y^2 = 2 * aEff * L から v_y = sqrt(2 * aEff * L)
+    const v_y_needed = Math.sqrt(2 * aEff * L);
+    
+    // αが90度に近い場合（横向き）は計算不可能なので防御
+    if (Math.abs(cosAlpha) < 0.01) {
+      return v_y_needed * EXTREME_ANGLE_MULTIPLIER; // 非常に大きな値を返す
+    }
+    
+    return v_y_needed / cosAlpha;
+  }
 }
 
 // ================= Cup crossing（線分と円の交差判定）=================
@@ -162,10 +187,10 @@ function segmentHitsCircle(x0, y0, x1, y1, r) {
 // ================= Simulation =================
 // 座標系：原点(0,0)はボール位置、+Y方向がカップ方向
 
-function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover) {
+function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover, useScalar) {
 
   const aRoll = computeARoll(stimpFt);
-  const v0 = computeInitialV0(D, Dover, aRoll, thetaDeg);
+  const v0 = computeInitialV0(D, Dover, aRoll, thetaDeg, alphaDeg, useScalar);
 
   const dt = 0.01;
   const g = 9.80665;
@@ -500,7 +525,8 @@ function getI() {
     theta: +theta.value,
     S: +S.value,
     alpha: +alpha.value,
-    Dover: +Dover.value
+    Dover: +Dover.value,
+    useScalar: useScalarSpeed.checked
   };
 }
 
@@ -522,7 +548,7 @@ function runSingle() {
     autoInitViewFromInputs();
   }
 
-  const sim = simulate2D(i.D, i.theta, i.S, i.alpha, i.Dover);
+  const sim = simulate2D(i.D, i.theta, i.S, i.alpha, i.Dover, i.useScalar);
 
   // α_center35 を計算
   const alphaCenter35 = computeAlphaCenter35(i.D, i.theta, i.S);
@@ -546,7 +572,8 @@ function runSingle() {
     `傾斜 θ：${i.theta}°（右+/左-）\n` +
     `スティンプ S：${i.S} ft\n` +
     `打ち出し角 α：${i.alpha}°（反時計+/時計-）\n` +
-    `オーバー距離 Dover：${i.Dover} m（縁基準）\n\n` +
+    `オーバー距離 Dover：${i.Dover} m（縁基準）\n` +
+    `速度計算モード：${i.useScalar ? "スカラー" : "ベクトル"}\n\n` +
     `【計算結果】\n` +
     `一定減速度 aRoll：${sim.aRoll.toFixed(3)} m/s²\n` +
     `初速 v0：${sim.v0.toFixed(3)} m/s\n` +
@@ -594,7 +621,7 @@ function runAlpha5() {
 
   deltas.forEach(d => {
     const a = baseAlpha + d;
-    const sim = simulate2D(i.D, i.theta, i.S, a, i.Dover);
+    const sim = simulate2D(i.D, i.theta, i.S, a, i.Dover, i.useScalar);
     sim.color = d === 0 ? "#ff0000" : "#0066cc";
     sims.push(sim);
   });
@@ -644,7 +671,7 @@ function runTheta5() {
 
   deltas.forEach(d => {
     const th = baseTheta + d;
-    const sim = simulate2D(i.D, th, i.S, i.alpha, i.Dover);
+    const sim = simulate2D(i.D, th, i.S, i.alpha, i.Dover, i.useScalar);
     sim.color = d === 0 ? "#ff0000" : "#cc66ff";
     sims.push(sim);
   });
@@ -681,7 +708,7 @@ function runDover5() {
 
   deltas.forEach(d => {
     const DoverVal = Math.max(0, baseDover + d);
-    const sim = simulate2D(i.D, i.theta, i.S, i.alpha, DoverVal);
+    const sim = simulate2D(i.D, i.theta, i.S, i.alpha, DoverVal, i.useScalar);
     sim.color = d === 0 ? "#ff0000" : "#ffaa44";
     sims.push(sim);
   });
@@ -822,6 +849,7 @@ reset.onclick = () => {
   S.value = 9;
   alpha.value = 0;
   Dover.value = 0.5;
+  useScalarSpeed.checked = true;
   // リセット時は view を自動初期化する
   view.initialized = false;
   runSingle();
