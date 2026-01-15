@@ -2,6 +2,7 @@
 
 const CUP = 0.108;
 const deg2rad = d => d * Math.PI / 180;
+const EXTREME_ANGLE_MULTIPLIER = 10; // 極端な角度時の速度倍率
 
 // ================= DOM references =================
 const D        = document.getElementById("D");
@@ -39,6 +40,7 @@ const Dover35 = 0.35;
 
 // α_center35を数値的に求める（二分法）
 // 目的：Dover35の強さで打ったとき、カップ中心 (0,D) を通る打ち出し角を求める
+// 注：参考ガイド線は常にスカラー計算を使用（ユーザーの設定とは独立した固定参照）
 function computeAlphaCenter35(D, thetaDeg, stimpFt) {
   const cupCenterX = 0;
   const cupCenterY = D;
@@ -155,7 +157,7 @@ function computeInitialV0(D, Dover, aRoll, thetaDeg, alphaDeg, useScalar) {
     
     // αが90度に近い場合（横向き）は計算不可能なので防御
     if (Math.abs(cosAlpha) < 0.01) {
-      return v_y_needed * 10; // 非常に大きな値を返す
+      return v_y_needed * EXTREME_ANGLE_MULTIPLIER; // 非常に大きな値を返す
     }
     
     return v_y_needed / cosAlpha;
