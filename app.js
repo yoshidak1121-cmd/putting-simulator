@@ -18,6 +18,16 @@ const btnRunAlpha5 = document.getElementById("runAlpha5");
 const btnRunTheta5 = document.getElementById("runTheta5");
 const btnRunDover5 = document.getElementById("runDover5");
 
+// 詳細設定
+const dtInput                 = document.getElementById("dt");
+const epsStopInput            = document.getElementById("epsStop");
+const maxTimeMinInput         = document.getElementById("maxTimeMin");
+const maxTimeMarginInput      = document.getElementById("maxTimeMargin");
+const maxTimeCapInput         = document.getElementById("maxTimeCap");
+const alphaCompareStepDegInput = document.getElementById("alphaCompareStepDeg");
+const thetaCompareStepDegInput = document.getElementById("thetaCompareStepDeg");
+const doverCompareStepMInput  = document.getElementById("doverCompareStepM");
+
 const result    = document.getElementById("result");
 
 // ================= Viewport（パン・ズーム・軸ドラッグ用）=================
@@ -185,12 +195,16 @@ function segmentHitsCircle(x0, y0, x1, y1, r) {
 // ================= Simulation =================
 // 座標系：原点(0,0)はボール位置、+Y方向がカップ方向
 
-function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover, useScalar) {
+function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover, useScalar, opts = {}) {
 
   const aRoll = computeARoll(stimpFt);
   const v0 = computeInitialV0(D, Dover, aRoll, thetaDeg, alphaDeg, useScalar);
 
-  const dt = 0.01;
+  const dt            = (opts.dt        !== undefined && opts.dt > 0)         ? opts.dt        : 0.01;
+  const epsStop       = (opts.epsStop   !== undefined && opts.epsStop >= 0)   ? opts.epsStop   : 0.01;
+  const maxTimeMin    = (opts.maxTimeMin    !== undefined && opts.maxTimeMin >= 0)    ? opts.maxTimeMin    : 10;
+  const maxTimeMargin = (opts.maxTimeMargin !== undefined && opts.maxTimeMargin >= 0) ? opts.maxTimeMargin : 2;
+  const maxTimeCap    = (opts.maxTimeCap    !== undefined && opts.maxTimeCap > 0)     ? opts.maxTimeCap    : 60;
   const g = 9.80665;
 
   // 原点をボール位置に変更（ボール原点基準）
@@ -217,12 +231,13 @@ function simulate2D(D, thetaDeg, stimpFt, alphaDeg, Dover, useScalar) {
   let tStop = 0;
 
   const estimatedStopTime = v0 / aRoll;
-  const maxTime = Math.max(10, estimatedStopTime + 2);
+  const maxTimeRaw = Math.max(maxTimeMin, estimatedStopTime + maxTimeMargin);
+  const maxTime = Math.min(maxTimeRaw, maxTimeCap);
 
   for (let t = 0; t < maxTime; t += dt) {
 
     const v = Math.hypot(vx, vy);
-    if (v < 0.01) {
+    if (v < epsStop) {
       tStop = t;
       break;
     }
@@ -524,8 +539,29 @@ function getI() {
     S: +S.value,
     alpha: +alpha.value,
     Dover: +Dover.value,
-    useScalar: useScalarSpeed.checked
+    useScalar: useScalarSpeed.checked,
+    dt: +dtInput.value,
+    epsStop: +epsStopInput.value,
+    maxTimeMin: +maxTimeMinInput.value,
+    maxTimeMargin: +maxTimeMarginInput.value,
+    maxTimeCap: +maxTimeCapInput.value,
+    alphaCompareStepDeg: +alphaCompareStepDegInput.value,
+    thetaCompareStepDeg: +thetaCompareStepDegInput.value,
+    doverCompareStepM: +doverCompareStepMInput.value
   };
+}
+
+function validateAdvanced(i) {
+  if (isNaN(i.dt) || i.dt <= 0) return "詳細設定エラー：dtは0より大きい値を入力してください";
+  if (isNaN(i.epsStop) || i.epsStop < 0) return "詳細設定エラー：epsStopは0以上の値を入力してください";
+  if (isNaN(i.maxTimeMin) || i.maxTimeMin < 0) return "詳細設定エラー：最小計算時間は0以上の値を入力してください";
+  if (isNaN(i.maxTimeMargin) || i.maxTimeMargin < 0) return "詳細設定エラー：停止時刻マージンは0以上の値を入力してください";
+  if (isNaN(i.maxTimeCap) || i.maxTimeCap <= 0) return "詳細設定エラー：計算打ち切り上限は0より大きい値を入力してください";
+  if (i.maxTimeCap < i.maxTimeMin) return "詳細設定エラー：計算打ち切り上限は最小計算時間以上にしてください";
+  if (isNaN(i.alphaCompareStepDeg) || i.alphaCompareStepDeg <= 0) return "詳細設定エラー：α比較刻みは0より大きい値を入力してください";
+  if (isNaN(i.thetaCompareStepDeg) || i.thetaCompareStepDeg <= 0) return "詳細設定エラー：θ比較刻みは0より大きい値を入力してください";
+  if (isNaN(i.doverCompareStepM) || i.doverCompareStepM <= 0) return "詳細設定エラー：Dover比較刻みは0より大きい値を入力してください";
+  return null;
 }
 
 function runSingle() {
@@ -540,13 +576,22 @@ function runSingle() {
     ctx.fillRect(0, 0, cv.width, cv.height);
     return;
   }
+  const advErr = validateAdvanced(i);
+  if (advErr) {
+    result.textContent = advErr;
+    setupCanvas();
+    ctx.fillStyle = "#b8d4a8";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    return;
+  }
 
   // 初回は自動で view を初期化
   if (!view.initialized) {
     autoInitViewFromInputs();
   }
 
-  const sim = simulate2D(i.D, i.theta, i.S, i.alpha, i.Dover, i.useScalar);
+  const opts = { dt: i.dt, epsStop: i.epsStop, maxTimeMin: i.maxTimeMin, maxTimeMargin: i.maxTimeMargin, maxTimeCap: i.maxTimeCap };
+  const sim = simulate2D(i.D, i.theta, i.S, i.alpha, i.Dover, i.useScalar, opts);
 
   // α_center35 を計算
   const alphaCenter35 = computeAlphaCenter35(i.D, i.theta, i.S);
@@ -608,6 +653,14 @@ function runAlpha5() {
     ctx.fillRect(0, 0, cv.width, cv.height);
     return;
   }
+  const advErrA = validateAdvanced(i);
+  if (advErrA) {
+    result.textContent = advErrA;
+    setupCanvas();
+    ctx.fillStyle = "#b8d4a8";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    return;
+  }
 
   if (!view.initialized) {
     autoInitViewFromInputs();
@@ -615,11 +668,13 @@ function runAlpha5() {
 
   const sims = [];
   const baseAlpha = i.alpha;
-  const deltas = [-2, -1, 0, 1, 2];  // α：±2deg刻み
+  const step = i.alphaCompareStepDeg;
+  const deltas = [-2, -1, 0, 1, 2].map(k => k * step);
+  const opts = { dt: i.dt, epsStop: i.epsStop, maxTimeMin: i.maxTimeMin, maxTimeMargin: i.maxTimeMargin, maxTimeCap: i.maxTimeCap };
 
   deltas.forEach(d => {
     const a = baseAlpha + d;
-    const sim = simulate2D(i.D, i.theta, i.S, a, i.Dover, i.useScalar);
+    const sim = simulate2D(i.D, i.theta, i.S, a, i.Dover, i.useScalar, opts);
     sim.color = d === 0 ? "#ff0000" : "#0066cc";
     sims.push(sim);
   });
@@ -640,8 +695,8 @@ function runAlpha5() {
   result.textContent =
     `打ち出し角を5条件比較\n` +
     `中心値：α = ${baseAlpha}°\n` +
-    `範囲：${baseAlpha-2}° ~ ${baseAlpha+2}°（1°刻み）\n\n` +
-    `最適 α：${best.alpha}°\n` +
+    `範囲：${(baseAlpha - 2 * step).toFixed(2)}° ~ ${(baseAlpha + 2 * step).toFixed(2)}°（${step}°刻み）\n\n` +
+    `最適 α：${best.alpha.toFixed(2)}°\n` +
     `カップ中心からの距離：${best.dist.toFixed(3)} m`;
 }
 
@@ -658,6 +713,14 @@ function runTheta5() {
     ctx.fillRect(0, 0, cv.width, cv.height);
     return;
   }
+  const advErrT = validateAdvanced(i);
+  if (advErrT) {
+    result.textContent = advErrT;
+    setupCanvas();
+    ctx.fillStyle = "#b8d4a8";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    return;
+  }
 
   if (!view.initialized) {
     autoInitViewFromInputs();
@@ -665,11 +728,13 @@ function runTheta5() {
 
   const sims = [];
   const baseTheta = i.theta;
-  const deltas = [-1.0, -0.5, 0, 0.5, 1.0];  // θ：±0.5deg刻み
+  const step = i.thetaCompareStepDeg;
+  const deltas = [-2, -1, 0, 1, 2].map(k => k * step);
+  const opts = { dt: i.dt, epsStop: i.epsStop, maxTimeMin: i.maxTimeMin, maxTimeMargin: i.maxTimeMargin, maxTimeCap: i.maxTimeCap };
 
   deltas.forEach(d => {
     const th = baseTheta + d;
-    const sim = simulate2D(i.D, th, i.S, i.alpha, i.Dover, i.useScalar);
+    const sim = simulate2D(i.D, th, i.S, i.alpha, i.Dover, i.useScalar, opts);
     sim.color = d === 0 ? "#ff0000" : "#cc66ff";
     sims.push(sim);
   });
@@ -679,7 +744,7 @@ function runTheta5() {
   result.textContent = 
     `傾斜角を5条件比較\n` +
     `中心値：θ = ${baseTheta}°\n` +
-    `範囲：${(baseTheta-1.0).toFixed(1)}° ~ ${(baseTheta+1.0).toFixed(1)}°（0.5°刻み）`;
+    `範囲：${(baseTheta - 2 * step).toFixed(2)}° ~ ${(baseTheta + 2 * step).toFixed(2)}°（${step}°刻み）`;
 }
 
 // Dover 5条件比較（タッチを5条件比較）
@@ -695,6 +760,14 @@ function runDover5() {
     ctx.fillRect(0, 0, cv.width, cv.height);
     return;
   }
+  const advErrD = validateAdvanced(i);
+  if (advErrD) {
+    result.textContent = advErrD;
+    setupCanvas();
+    ctx.fillStyle = "#b8d4a8";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    return;
+  }
 
   if (!view.initialized) {
     autoInitViewFromInputs();
@@ -702,16 +775,18 @@ function runDover5() {
 
   const sims = [];
   const baseDover = i.Dover;
-  const deltas = [-0.20, -0.10, 0, 0.10, 0.20];  // Dover：±0.10m刻み
+  const step = i.doverCompareStepM;
+  const deltas = [-2, -1, 0, 1, 2].map(k => k * step);
+  const opts = { dt: i.dt, epsStop: i.epsStop, maxTimeMin: i.maxTimeMin, maxTimeMargin: i.maxTimeMargin, maxTimeCap: i.maxTimeCap };
 
   deltas.forEach(d => {
     const DoverVal = Math.max(0, baseDover + d);
-    const sim = simulate2D(i.D, i.theta, i.S, i.alpha, DoverVal, i.useScalar);
+    const sim = simulate2D(i.D, i.theta, i.S, i.alpha, DoverVal, i.useScalar, opts);
     sim.color = d === 0 ? "#ff0000" : "#ffaa44";
     sims.push(sim);
   });
 
-  drawMany(sims, i.D, baseDover + 0.5, `タッチを5条件比較（中心 ${baseDover} m）`);
+  drawMany(sims, i.D, baseDover + 2 * step + 0.1, `タッチを5条件比較（中心 ${baseDover} m）`);
 
   let best = null;
   const cupCenterX = 0;
@@ -727,7 +802,7 @@ function runDover5() {
   result.textContent =
     `タッチを5条件比較\n` +
     `中心値：Dover = ${baseDover} m\n` +
-    `範囲：${Math.max(0, baseDover-0.20).toFixed(2)} ~ ${(baseDover+0.20).toFixed(2)} m（0.10m刻み）\n\n` +
+    `範囲：${Math.max(0, baseDover - 2 * step).toFixed(2)} ~ ${(baseDover + 2 * step).toFixed(2)} m（${step}m刻み）\n\n` +
     `最適 Dover：${best.Dover.toFixed(2)} m\n` +
     `カップ中心からの距離：${best.dist.toFixed(3)} m`;
 }
@@ -848,6 +923,14 @@ reset.onclick = () => {
   alpha.value = 0;
   Dover.value = 0.5;
   useScalarSpeed.checked = true;
+  dtInput.value = 0.01;
+  epsStopInput.value = 0.01;
+  maxTimeMinInput.value = 10;
+  maxTimeMarginInput.value = 2;
+  maxTimeCapInput.value = 60;
+  alphaCompareStepDegInput.value = 1;
+  thetaCompareStepDegInput.value = 0.5;
+  doverCompareStepMInput.value = 0.10;
   // リセット時は view を自動初期化する
   view.initialized = false;
   runSingle();
